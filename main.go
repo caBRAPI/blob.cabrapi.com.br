@@ -19,6 +19,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	limiter := middleware.Variables()
+	handler := middleware.CORSMiddleware(mux)
 	routes.RegisterRoutes(mux, limiter)
 
 	PORT := os.Getenv("BLOB_PORT")
@@ -31,5 +32,5 @@ func main() {
 	}
 
 	functions.Info("[SERVER] Server running at: http://%s:%s", HOST, PORT)
-	http.ListenAndServe(HOST+":"+PORT, mux)
+	http.ListenAndServe(HOST+":"+PORT, handler)
 }
