@@ -6,10 +6,13 @@ Minimalist file storage API with upload, download, authentication, rate limiting
 
 | Method  |           Route             | Private |  Description  |
 |---------|-----------------------------|---------|---------------|
-| `PUT`   | `/blob/:bucket`             | `true`  | Upload Blob   |
+| `PUT`   | `/blob`                     | `true`  | Upload Blob   |
 | `GET`   | `/blob`                     | `true`  | List blobs    |
-| `GET`   | `/blob/:bucket/:id`         | `false` | Download blob |
-| `HEAD`  | `/blob/:bucket/:id`         | `false` | Blob metadata |
-| `DELETE`| `/blob/:bucket/:bucket/:id` | `true`  | Delete blob   |
+| `POST`  | `/blob/:uuid`               | `true`  | Edit metadata |
+| `GET`   | `/blob/:uuid`               | `false` | Download blob |
+| `HEAD`  | `/blob/:uuid`               | `false` | Blob metadata |
+| `DELETE`| `/blob/:uuid`               | `true`  | Delete blob   |
 | `GET`   | `/health`                   | `false` | Healthcheck   |
 | `GET`   | `/`                         | `false` | Hello, World  |
+
+## Database Schema
