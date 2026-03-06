@@ -1,0 +1,23 @@
+# Dependencies and local artifacts
+node_modules
+npm-debug.log*
+
+# Local runtime data
+/data
+
+# VCS and editor metadata
+.git
+.gitignore
+.vscode
+
+# Build outputs and reports
+build
+dist
+coverage
+
+# Local env files (keep example in image context if needed)
+.env
+
+# OS junk
+.DS_Store
+Thumbs.db

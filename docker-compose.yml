@@ -4,15 +4,35 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: blob-local
+    init: true
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     environment:
-      HOST: 0.0.0.0
-      PORT: 3000
-      DATABASE_URL: file:./data/blob.db
-      STORAGE_PATH: data/blob-storage
-      TOKEN_SECRET: change-me-in-production
-      MAX_UPLOAD_SIZE_BYTES: 20971520
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: ${DATABASE_URL:-file:./data/blob.db}
+      STORAGE_PATH: ${STORAGE_PATH:-data/blob-storage}
+      TOKEN_SECRET: ${TOKEN_SECRET:-local-dev-token-secret}
+      SIGNED_URL_TTL_MIN_SECONDS: ${SIGNED_URL_TTL_MIN_SECONDS:-30}
+      SIGNED_URL_TTL_MAX_SECONDS: ${SIGNED_URL_TTL_MAX_SECONDS:-900}
+      SIGN_RATE_LIMIT_MAX: ${SIGN_RATE_LIMIT_MAX:-20}
+      SIGN_RATE_LIMIT_WINDOW_MS: ${SIGN_RATE_LIMIT_WINDOW_MS:-60000}
+      DOWNLOAD_RATE_LIMIT_MAX: ${DOWNLOAD_RATE_LIMIT_MAX:-120}
+      DOWNLOAD_RATE_LIMIT_WINDOW_MS: ${DOWNLOAD_RATE_LIMIT_WINDOW_MS:-60000}
+      MAX_UPLOAD_SIZE_BYTES: ${MAX_UPLOAD_SIZE_BYTES:-20971520}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3000/health > /dev/null || exit 1",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     volumes:
       - ./data:/app/data
     restart: unless-stopped

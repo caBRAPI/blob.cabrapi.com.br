@@ -56,8 +56,21 @@ curl http://127.0.0.1:3000/health
 
 ## Docker (volume em `data/`)
 
+Antes de subir o container, gere seu `.env`:
+
+```bash
+cp .env.example .env
+```
+
 ```bash
 docker compose up --build -d
+```
+
+Verificar status e healthcheck:
+
+```bash
+docker compose ps
+docker compose logs -f blob
 ```
 
 Persistencia:
@@ -142,14 +155,6 @@ curl -X DELETE -H "x-admin-token: <TOKEN_SECRET>" "http://127.0.0.1:3000/blob/<i
 - validacao de `bucket`/`key` e bloqueio de path traversal
 - rate limit por IP nas rotas privadas
 - headers `x-ratelimit-remaining` e `x-ratelimit-reset`
-
-## Tester HTML
-
-Existe um tester manual em:
-
-- `api-tester.html`
-
-Abra no navegador e configure a base URL (`http://127.0.0.1:3000`).
 
 ## Scripts
 
