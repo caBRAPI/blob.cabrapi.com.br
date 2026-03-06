@@ -11,6 +11,9 @@ export type BlobResponse = Omit<PrismaBlob, "metadata"> & {
     metadata: Record<string, unknown> | null;
 };
 
+/**
+ * Parameters accepted when persisting a blob upload.
+ */
 type SaveBlobOptions = {
     bucket?: string;
     key?: string;
@@ -18,6 +21,9 @@ type SaveBlobOptions = {
     metadata?: unknown;
 };
 
+/**
+ * Query options for paginated blob listing.
+ */
 type ListBlobParams = {
     page?: number;
     pageSize?: number;
@@ -28,6 +34,9 @@ type ListBlobParams = {
 const BUCKET_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{1,62}$/;
 
 // Service layer: persistence + filesystem operations.
+/**
+ * Returns base directory where object files are stored.
+ */
 function getStorageBasePath(): string {
     return process.env.STORAGE_PATH || "data/blob-storage";
 }
@@ -125,6 +134,9 @@ function ensureAllowedMime(mime: string): void {
 
 /**
  * Writes the binary object file to storage path.
+ *
+ * @param absolutePath Absolute path in local storage.
+ * @param buffer Uploaded file bytes.
  */
 async function persistObjectFile(
     absolutePath: string,
@@ -156,6 +168,9 @@ function createBlobRecord(
 }
 
 // SQLite keeps metadata as string; API returns parsed object.
+/**
+ * Converts Prisma row to API-safe response shape.
+ */
 function deserializeBlob(blob: PrismaBlob): BlobResponse {
     let parsedMetadata: Record<string, unknown> | null = null;
 
@@ -254,6 +269,9 @@ export async function saveBlob(
 
 /**
  * Finds an active blob by ID.
+ *
+ * @param id Blob identifier.
+ * @returns Blob metadata or `null` when not found.
  */
 export async function findBlobById(id: string): Promise<BlobResponse | null> {
     if (!id) {
@@ -272,6 +290,9 @@ export async function findBlobById(id: string): Promise<BlobResponse | null> {
 
 /**
  * Returns paginated blob metadata.
+ *
+ * @param params Listing options.
+ * @returns Paginated list and total items count.
  */
 export async function listBlobItems({
     page = 1,
@@ -310,6 +331,9 @@ export async function listBlobItems({
 
 /**
  * Soft-deletes a blob and attempts to remove its file.
+ *
+ * @param id Blob identifier.
+ * @returns Deleted blob metadata or `null`.
  */
 export async function deleteBlobById(id: string): Promise<BlobResponse | null> {
     const item = await prisma.blob.findFirst({
@@ -340,6 +364,8 @@ export async function deleteBlobById(id: string): Promise<BlobResponse | null> {
 
 /**
  * Increments download counter for observability.
+ *
+ * @param id Blob identifier.
  */
 export async function incrementBlobDownloadCount(id: string): Promise<void> {
     if (!id) {
@@ -360,6 +386,10 @@ export async function incrementBlobDownloadCount(id: string): Promise<void> {
 
 /**
  * Resolves a blob path and guarantees it is inside storage root.
+ *
+ * @param blobPath Relative path stored in database.
+ * @returns Absolute, validated path inside storage directory.
+ * @throws {HttpError} When path escapes storage root.
  */
 export function resolveBlobAbsolutePath(blobPath: string): string {
     const absolutePath = path.resolve(process.cwd(), blobPath);

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
@@ -17,7 +18,11 @@ import {
 // Controller layer: HTTP concerns only (input parsing, rate limits, status codes).
 
 /**
- * Parses a positive integer from env with fallback.
+ * Reads a positive integer configuration value from environment.
+ *
+ * @param name Environment variable name.
+ * @param fallback Value used when parsing fails.
+ * @returns Positive integer configuration value.
  */
 function getEnvInt(name: string, fallback: number): number {
     const parsed = Number(process.env[name] ?? fallback);
@@ -34,7 +39,10 @@ const CONFIG = {
 };
 
 /**
- * Extracts best-effort client IP for rate limiting.
+ * Extracts best-effort client IP for rate limiting decisions.
+ *
+ * @param req Express request.
+ * @returns Client IP or fallback identifier.
  */
 function getClientIp(req: Request): string {
     return req.ip || String(req.headers["x-forwarded-for"] || "unknown");
@@ -42,6 +50,9 @@ function getClientIp(req: Request): string {
 
 /**
  * Adds rate limit metadata headers to the response.
+ *
+ * @param res Express response.
+ * @param rateLimit Calculated rate-limit result.
  */
 function setRateLimitHeaders(res: Response, rateLimit: RateLimitResult): void {
     res.setHeader("x-ratelimit-remaining", String(rateLimit.remaining));
@@ -53,6 +64,10 @@ function setRateLimitHeaders(res: Response, rateLimit: RateLimitResult): void {
 
 /**
  * Converts common truthy/falsy payloads to boolean.
+ *
+ * @param value Raw input value.
+ * @param fallback Default value when parsing is ambiguous.
+ * @returns Parsed boolean.
  */
 function parseBoolean(value: unknown, fallback = false): boolean {
     if (value === undefined) {
@@ -72,6 +87,9 @@ function parseBoolean(value: unknown, fallback = false): boolean {
 
 /**
  * Parses optional boolean query params (`true|false`).
+ *
+ * @param value Raw query value.
+ * @returns `true`, `false` or `undefined` when not provided.
  *
  * @throws {HttpError} When query value is present but invalid.
  */
@@ -100,6 +118,67 @@ function parseOptionalBooleanQuery(value: unknown): boolean | undefined {
 }
 
 /**
+ * Resolves administrative token from environment.
+ *
+ * Uses TOKEN_SECRET to keep a single credential for protected operations.
+ * Falls back to local dev token in non-production environments.
+ */
+function getAdminToken(): string | undefined {
+    return (
+        process.env.TOKEN_SECRET ||
+        (process.env.NODE_ENV === "production"
+            ? undefined
+            : "local-dev-token-secret")
+    );
+}
+
+/**
+ * Compares two tokens using timing-safe comparison.
+ */
+function tokenMatches(expectedToken: string, providedToken: string): boolean {
+    const expected = Buffer.from(expectedToken);
+    const provided = Buffer.from(providedToken);
+
+    if (expected.length !== provided.length) {
+        return false;
+    }
+
+    return crypto.timingSafeEqual(expected, provided);
+}
+
+/**
+ * Checks whether caller has administrative access for protected operations.
+ *
+ * @param req Express request.
+ * @returns `true` when request contains valid administrative token.
+ *
+ * Accepted headers:
+ * - `x-admin-token: <TOKEN_SECRET>`
+ * - `authorization: Bearer <TOKEN_SECRET>`
+ */
+function hasAdminAccess(req: Request): boolean {
+    const configuredToken = getAdminToken();
+    if (!configuredToken) {
+        return false;
+    }
+
+    const adminTokenHeader = req.headers["x-admin-token"];
+    if (typeof adminTokenHeader === "string") {
+        return tokenMatches(configuredToken, adminTokenHeader);
+    }
+
+    const authorization = req.headers.authorization;
+    if (
+        typeof authorization === "string" &&
+        authorization.startsWith("Bearer ")
+    ) {
+        return tokenMatches(configuredToken, authorization.slice(7).trim());
+    }
+
+    return false;
+}
+
+/**
  * Handles multipart upload and persists blob metadata/content.
  *
  * Expected payload (`multipart/form-data`):
@@ -108,6 +187,13 @@ function parseOptionalBooleanQuery(value: unknown): boolean | undefined {
  * - `key` (optional)
  * - `public` (optional, `true|false`)
  * - `metadata` (optional, JSON string)
+ *
+ * Access control:
+ * - requires administrative token (`TOKEN_SECRET`) in header.
+ *
+ * @param req Express request with multipart body.
+ * @param res Express response.
+ * @param next Express error callback.
  */
 export async function uploadBlob(
     req: Request,
@@ -115,6 +201,13 @@ export async function uploadBlob(
     next: NextFunction,
 ): Promise<void> {
     try {
+        if (!hasAdminAccess(req)) {
+            res.status(401).json({
+                error: "Administrative token required for upload",
+            });
+            return;
+        }
+
         if (!req.file) {
             res.status(400).json({ error: "Missing file field in multipart body" });
             return;
@@ -143,6 +236,14 @@ export async function uploadBlob(
  * - `pageSize` (default: 20, max: 100)
  * - `bucket` (optional)
  * - `public` (optional, `true|false`)
+ *
+ * Security behavior:
+ * - without administrative token, listing is forced to `public=true`
+ * - requesting `public=false` without token returns `403`
+ *
+ * @param req Express request.
+ * @param res Express response.
+ * @param next Express error callback.
  */
 export async function listBlobs(
     req: Request,
@@ -154,7 +255,21 @@ export async function listBlobs(
         const pageSize = Number(req.query.pageSize ?? 20);
         const bucket =
             typeof req.query.bucket === "string" ? req.query.bucket : undefined;
-        const isPublic = parseOptionalBooleanQuery(req.query.public);
+        const requestedPublic = parseOptionalBooleanQuery(req.query.public);
+
+        // Security default: unauthenticated callers can only list public blobs.
+        let isPublic: boolean | undefined = requestedPublic;
+
+        if (!hasAdminAccess(req)) {
+            if (requestedPublic === false) {
+                res.status(403).json({
+                    error: "Listing private blobs requires administrative token",
+                });
+                return;
+            }
+
+            isPublic = true;
+        }
 
         const { data, total } = await listBlobItems({
             page,
@@ -180,6 +295,10 @@ export async function listBlobs(
  * Streams a blob file if access conditions are satisfied.
  *
  * Private blobs require querystring signature fields: `exp`, `n`, `sig`.
+ *
+ * @param req Express request.
+ * @param res Express response.
+ * @param next Express error callback.
  */
 export async function getBlob(
     req: Request,
@@ -258,6 +377,13 @@ export async function getBlob(
 
 /**
  * Soft-deletes blob metadata and removes file when present.
+ *
+ * Access control:
+ * - requires administrative token (`TOKEN_SECRET`) in header.
+ *
+ * @param req Express request.
+ * @param res Express response.
+ * @param next Express error callback.
  */
 export async function destroyBlob(
     req: Request,
@@ -265,6 +391,13 @@ export async function destroyBlob(
     next: NextFunction,
 ): Promise<void> {
     try {
+        if (!hasAdminAccess(req)) {
+            res.status(401).json({
+                error: "Administrative token required for delete",
+            });
+            return;
+        }
+
         const blobId = String(req.params.id);
         const deleted = await deleteBlobById(blobId);
 
@@ -286,6 +419,10 @@ export async function destroyBlob(
  *
  * Query params:
  * - `ttl` in seconds, clamped by environment min/max bounds.
+ *
+ * @param req Express request.
+ * @param res Express response.
+ * @param next Express error callback.
  */
 export async function getBlobSignedUrl(
     req: Request,

@@ -15,27 +15,26 @@ Servico HTTP para upload, listagem, visualizacao e remocao de arquivos com:
 
 ## Configuracao
 
-Crie `.env` em `blob/`:
+Use o arquivo de exemplo:
 
-```env
-PORT=3000
-HOST=0.0.0.0
-DATABASE_URL=file:./data/blob.db
-STORAGE_PATH=data/blob-storage
-TOKEN_SECRET=troque-este-segredo-com-32-caracteres-ou-mais
-
-SIGNED_URL_TTL_MIN_SECONDS=30
-SIGNED_URL_TTL_MAX_SECONDS=900
-SIGN_RATE_LIMIT_MAX=20
-SIGN_RATE_LIMIT_WINDOW_MS=60000
-DOWNLOAD_RATE_LIMIT_MAX=120
-DOWNLOAD_RATE_LIMIT_WINDOW_MS=60000
-
-# Opcional
-# ALLOWED_MIME_TYPES=image/png,image/jpeg,application/pdf
-# MAX_UPLOAD_SIZE_BYTES=20971520
-# CORS_ORIGINS=https://app.example.com
+```bash
+cp .env.example .env
 ```
+
+No Windows (PowerShell):
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Ajuste obrigatoriamente:
+
+- `TOKEN_SECRET`
+
+Token administrativo:
+
+- use `TOKEN_SECRET` em `x-admin-token` (ou `Authorization: Bearer ...`) para operacoes protegidas
+- operacoes protegidas: upload, delete e listagem de privados
 
 ## Executar Local (Passo a Passo)
 
@@ -91,6 +90,7 @@ Exemplo com `curl`:
 
 ```bash
 curl -X POST "http://127.0.0.1:3000/blob/upload" \
+	-H "x-admin-token: <TOKEN_SECRET>" \
 	-F "file=@./arquivo.pdf" \
 	-F "bucket=docs" \
 	-F "key=contratos/arquivo.pdf" \
@@ -118,17 +118,22 @@ curl -L "http://127.0.0.1:3000/blob/<id>?exp=<exp>&n=<nonce>&sig=<sig>" --output
 
 ### Listagem
 
+Comportamento de seguranca:
+
+- sem token administrativo, a API lista apenas blobs publicos
+- para listar privados, envie `x-admin-token` com `TOKEN_SECRET`
+
 ```bash
 curl "http://127.0.0.1:3000/blob?page=1&pageSize=10"
 curl "http://127.0.0.1:3000/blob?page=1&pageSize=10&bucket=docs"
 curl "http://127.0.0.1:3000/blob?page=1&pageSize=10&public=true"
-curl "http://127.0.0.1:3000/blob?page=1&pageSize=10&public=false"
+curl -H "x-admin-token: <TOKEN_SECRET>" "http://127.0.0.1:3000/blob?page=1&pageSize=10&public=false"
 ```
 
 ### Remocao
 
 ```bash
-curl -X DELETE "http://127.0.0.1:3000/blob/<id>"
+curl -X DELETE -H "x-admin-token: <TOKEN_SECRET>" "http://127.0.0.1:3000/blob/<id>"
 ```
 
 ## Seguranca
