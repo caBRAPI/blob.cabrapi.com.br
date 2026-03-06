@@ -1,12 +1,10 @@
 import express from "express";
 import multer from "multer";
-import {
-  destroyBlob,
-  getBlob,
-  getBlobSignedUrl,
-  listBlobs,
-  uploadBlob,
-} from "#controllers/blob.controller";
+import { destroyBlob } from "#controllers/blob.delete.controller";
+import { getBlob } from "#controllers/blob.get.controller";
+import { listBlobs } from "#controllers/blob.list.controller";
+import { getBlobSignedUrl } from "#controllers/blob.sign.controller";
+import { uploadBlob } from "#controllers/blob.upload.controller";
 
 const router = express.Router();
 
