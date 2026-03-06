@@ -1,19 +1,29 @@
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
 import { deleteBlobById } from "#services/blob.service";
-import { hasAdminAccess } from "./blob.util";
+import { hasAdminAccess } from "#controllers/blob.util";
 
 /**
  * Soft-deletes a blob and removes its file.
  *
  * @route DELETE /blob/:id
+ * @summary Delete a blob by ID. Requires admin authentication.
+ *
  * @param req Express request (params)
  *   - id: string (required, path param)
  * @param res Express response
  * @param next Express error callback
+ *
  * @returns 204 No Content: Blob deleted
  * @returns 401 Unauthorized: Missing/invalid admin token
  * @returns 404 Not Found: Blob not found
+ *
+ * @example Request
+ *   DELETE /blob/abc123
+ *   Headers: x-admin-token: <TOKEN>
+ *
+ * @security AdminToken
+ * @see hasAdminAccess
  */
 export async function destroyBlob(
     req: Request,

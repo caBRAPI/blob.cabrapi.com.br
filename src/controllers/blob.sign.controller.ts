@@ -12,14 +12,32 @@ const CONFIG = {
  * Issues a signed URL payload for private blob download.
  *
  * @route GET /blob/:id/sign
+ * @summary Generate a signed URL for private blob download. Signed URLs are JWT tokens with TTL.
+ *
  * @param req Express request (params, query)
  *   - id: string (required, path param)
- *   - ttl: number (optional, query param, seconds)
+ *   - ttl: number (optional, query param, seconds, default: 300)
  * @param res Express response
  * @param next Express error callback
- * @returns 200 OK: Signed URL payload
+ *
+ * @returns 200 OK: Signed URL payload (JSON)
  * @returns 404 Not Found: Blob not found
  * @returns 410 Gone: Blob expired
+ *
+ * @example Request
+ *   GET /blob/abc123/sign?ttl=600
+ *
+ * @example Response (200)
+ *   {
+ *     "id": "abc123",
+ *     "exp": 1710000000,
+ *     "token": "eyJhbGciOi...",
+ *     "ttl": 600,
+ *     "url": "/blob/abc123?token=eyJhbGciOi..."
+ *   }
+ *
+ * @security AdminToken (to bypass TTL) | SignedUrl
+ * @see hasAdminAccess
  */
 export async function getBlobSignedUrl(
     req: Request,

@@ -8,21 +8,36 @@ import {
     incrementBlobDownloadCount,
     resolveBlobAbsolutePath,
 } from "#services/blob.service";
-import { hasAdminAccess } from "./blob.util";
+import { hasAdminAccess } from "#controllers/blob.util";
 
 /**
  * Downloads a blob file if access conditions are satisfied.
  *
  * @route GET /blob/:id
+ * @summary Download a blob file. Private blobs require a signed URL or admin token.
+ *
  * @param req Express request (params, query)
  *   - id: string (required, path param)
  *   - token: string (optional, query param for private blobs)
  * @param res Express response
  * @param next Express error callback
+ *
  * @returns 200 OK: File stream
  * @returns 403 Forbidden: Invalid or expired signature
  * @returns 404 Not Found: Blob not found
  * @returns 410 Gone: Blob expired
+ *
+ * @example Request (public)
+ *   GET /blob/abc123
+ *
+ * @example Request (private, signed)
+ *   GET /blob/abc123?token=eyJhbGciOi...
+ *
+ * @example Response (200)
+ *   (file stream)
+ *
+ * @security AdminToken | SignedUrl
+ * @see getBlobSignedUrl, hasAdminAccess
  */
 export async function getBlob(
     req: Request,

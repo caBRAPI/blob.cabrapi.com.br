@@ -1,21 +1,38 @@
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
 import { listBlobItems } from "#services/blob.service";
-import { hasAdminAccess } from "./blob.util";
+import { hasAdminAccess } from "#controllers/blob.util";
 
 /**
  * Lists blobs with pagination and optional filters.
  *
  * @route GET /blob
+ * @summary List blobs with pagination. Private blobs require admin authentication.
+ *
  * @param req Express request (query params)
- *   - page: number (default: 1)
+ *   - page: number (default: 1, page number)
  *   - pageSize: number (default: 20, max: 100)
- *   - bucket: string (optional)
- *   - public: boolean (optional)
+ *   - bucket: string (optional, filter by bucket)
+ *   - public: boolean (optional, filter by visibility)
  * @param res Express response
  * @param next Express error callback
- * @returns 200 OK: Paginated list of blobs
+ *
+ * @returns 200 OK: Paginated list of blobs (JSON)
  * @returns 403 Forbidden: Listing private blobs without admin token
+ *
+ * @example Request
+ *   GET /blob?page=1&pageSize=10&public=true
+ *
+ * @example Response (200)
+ *   {
+ *     "page": 1,
+ *     "pageSize": 10,
+ *     "total": 42,
+ *     "items": [ { "id": "...", ... }, ... ]
+ *   }
+ *
+ * @security AdminToken (for private blobs)
+ * @see hasAdminAccess
  */
 export async function listBlobs(
     req: Request,
