@@ -91,8 +91,11 @@ Base URL: `http://localhost:3000`
 ## Scripts
 
 ```bash
+npm run dev
+npm start
 npm run db:generate
 npm run db:push
 npm run db:prepare
+npm run typecheck
 npm run check
 ```

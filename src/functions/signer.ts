@@ -45,6 +45,9 @@ function buildPayload({ method, id, exp, nonce }: SignInput): string {
   return `${SIGNING_VERSION}:${String(method || "GET").toUpperCase()}:${id}:${exp}:${nonce}`;
 }
 
+/**
+ * Generates a URL-safe nonce for one-time signed URL payloads.
+ */
 export function createNonce(): string {
   return crypto.randomBytes(18).toString("base64url");
 }

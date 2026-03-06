@@ -11,6 +11,9 @@ export function hashContent(buffer: Buffer): string {
   }
 }
 
+/**
+ * Backward-compatible alias for content hashing.
+ */
 export function sha256(buffer: Buffer): string {
   return hashContent(buffer);
 }
