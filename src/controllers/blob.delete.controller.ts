@@ -16,34 +16,34 @@ import { hasAdminAccess } from "./blob.util";
  * @returns 404 Not Found: Blob not found
  */
 export async function destroyBlob(
-  req: Request,
-  res: Response,
-  next: NextFunction,
+    req: Request,
+    res: Response,
+    next: NextFunction,
 ): Promise<void> {
-  try {
-    if (!hasAdminAccess(req)) {
-      res
-        .status(401)
-        .json({ error: "Administrative token required for delete" });
-      return;
+    try {
+        if (!hasAdminAccess(req)) {
+            res
+                .status(401)
+                .json({ error: "Administrative token required for delete" });
+            return;
+        }
+        const schema = z.object({ id: z.string().min(1) });
+        const parsed = schema.safeParse({ id: req.params.id });
+        if (!parsed.success) {
+            res
+                .status(400)
+                .json({ error: "Invalid parameters", details: parsed.error.flatten() });
+            return;
+        }
+        const deleted = await deleteBlobById(parsed.data.id);
+        if (!deleted) {
+            res.status(404).json({ error: "Blob not found" });
+            return;
+        }
+        res.status(204).send();
+        return;
+    } catch (error) {
+        next(error);
+        return;
     }
-    const schema = z.object({ id: z.string().min(1) });
-    const parsed = schema.safeParse({ id: req.params.id });
-    if (!parsed.success) {
-      res
-        .status(400)
-        .json({ error: "Invalid parameters", details: parsed.error.flatten() });
-      return;
-    }
-    const deleted = await deleteBlobById(parsed.data.id);
-    if (!deleted) {
-      res.status(404).json({ error: "Blob not found" });
-      return;
-    }
-    res.status(204).send();
-    return;
-  } catch (error) {
-    next(error);
-    return;
-  }
 }

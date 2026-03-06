@@ -4,9 +4,9 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import {
-  findBlobById,
-  incrementBlobDownloadCount,
-  resolveBlobAbsolutePath,
+    findBlobById,
+    incrementBlobDownloadCount,
+    resolveBlobAbsolutePath,
 } from "#services/blob.service";
 import { hasAdminAccess } from "./blob.util";
 
@@ -25,69 +25,69 @@ import { hasAdminAccess } from "./blob.util";
  * @returns 410 Gone: Blob expired
  */
 export async function getBlob(
-  req: Request,
-  res: Response,
-  next: NextFunction,
+    req: Request,
+    res: Response,
+    next: NextFunction,
 ): Promise<void> {
-  try {
-    const schema = z.object({
-      id: z.string().min(1),
-      token: z.string().optional(),
-    });
-    const parsed = schema.safeParse({
-      id: req.params.id,
-      token: req.query.token,
-    });
-    if (!parsed.success) {
-      res
-        .status(400)
-        .json({ error: "Invalid parameters", details: parsed.error.flatten() });
-      return;
-    }
-    const blob = await findBlobById(parsed.data.id);
-    if (!blob) {
-      res.status(404).json({ error: "Blob not found" });
-      return;
-    }
-    if (!blob.public) {
-      if (hasAdminAccess(req)) {
-        if (blob.expiresAt && new Date() > new Date(blob.expiresAt)) {
-          res.status(410).json({ error: "Blob expired" });
-          return;
-        }
-      } else {
-        if (!parsed.data.token) {
-          res.status(403).json({
-            error:
-              "Private blob requires signed URL. Use GET /blob/:id/sign first.",
-          });
-          return;
-        }
-        try {
-          const payload = jwt.verify(
-            parsed.data.token,
-            process.env.TOKEN_SECRET ?? "",
-          ) as { id: string };
-          if (payload.id !== blob.id) throw new Error();
-          if (blob.expiresAt && new Date() > new Date(blob.expiresAt)) {
-            res.status(410).json({ error: "Blob expired" });
+    try {
+        const schema = z.object({
+            id: z.string().min(1),
+            token: z.string().optional(),
+        });
+        const parsed = schema.safeParse({
+            id: req.params.id,
+            token: req.query.token,
+        });
+        if (!parsed.success) {
+            res
+                .status(400)
+                .json({ error: "Invalid parameters", details: parsed.error.flatten() });
             return;
-          }
-        } catch {
-          res.status(403).json({ error: "Invalid or expired signature" });
-          return;
         }
-      }
+        const blob = await findBlobById(parsed.data.id);
+        if (!blob) {
+            res.status(404).json({ error: "Blob not found" });
+            return;
+        }
+        if (!blob.public) {
+            if (hasAdminAccess(req)) {
+                if (blob.expiresAt && new Date() > new Date(blob.expiresAt)) {
+                    res.status(410).json({ error: "Blob expired" });
+                    return;
+                }
+            } else {
+                if (!parsed.data.token) {
+                    res.status(403).json({
+                        error:
+                            "Private blob requires signed URL. Use GET /blob/:id/sign first.",
+                    });
+                    return;
+                }
+                try {
+                    const payload = jwt.verify(
+                        parsed.data.token,
+                        process.env.TOKEN_SECRET ?? "",
+                    ) as { id: string };
+                    if (payload.id !== blob.id) throw new Error();
+                    if (blob.expiresAt && new Date() > new Date(blob.expiresAt)) {
+                        res.status(410).json({ error: "Blob expired" });
+                        return;
+                    }
+                } catch {
+                    res.status(403).json({ error: "Invalid or expired signature" });
+                    return;
+                }
+            }
+        }
+        incrementBlobDownloadCount(blob.id).catch(() => { });
+        const absolutePath = resolveBlobAbsolutePath(blob.path);
+        await fs.access(absolutePath);
+        res.setHeader("Content-Type", blob.mime || "application/octet-stream");
+        res.setHeader("Content-Disposition", `inline; filename="${blob.filename}"`);
+        res.sendFile(path.resolve(absolutePath));
+        return;
+    } catch (error) {
+        next(error);
+        return;
     }
-    incrementBlobDownloadCount(blob.id).catch(() => {});
-    const absolutePath = resolveBlobAbsolutePath(blob.path);
-    await fs.access(absolutePath);
-    res.setHeader("Content-Type", blob.mime || "application/octet-stream");
-    res.setHeader("Content-Disposition", `inline; filename="${blob.filename}"`);
-    res.sendFile(path.resolve(absolutePath));
-    return;
-  } catch (error) {
-    next(error);
-    return;
-  }
 }
