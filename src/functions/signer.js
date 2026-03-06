@@ -2,7 +2,12 @@ import crypto from "node:crypto";
 import "dotenv/config";
 
 function getSecret() {
-  const secret = process.env.TOKEN_SECRET || process.env.SECRET;
+  const secret =
+    process.env.TOKEN_SECRET ||
+    process.env.SECRET ||
+    (process.env.NODE_ENV === "production"
+      ? undefined
+      : "local-dev-token-secret");
 
   if (!secret) {
     throw new Error("TOKEN_SECRET is required");

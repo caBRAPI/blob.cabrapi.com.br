@@ -1,4 +1,3 @@
-import body from "body-parser";
 import compression from "compression";
 import cors from "cors";
 import express from "express";
@@ -48,9 +47,9 @@ app.use(
     }),
 );
 app.use(compression());
-app.use(body.json({ limit: "250mb" }));
+app.use(express.json({ limit: "250mb" }));
 app.use(
-    body.urlencoded({
+    express.urlencoded({
         limit: "250mb",
         extended: true,
     }),
