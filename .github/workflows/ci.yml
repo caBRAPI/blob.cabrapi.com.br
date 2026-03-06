@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -53,8 +53,8 @@ jobs:
         env:
           CGO_ENABLED: 0
         run: |
-          go build -trimpath -ldflags="-s -w" -o gateway
-          ls -lh gateway
+          go build -trimpath -ldflags="-s -w" -o blob
+          ls -lh blob
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
