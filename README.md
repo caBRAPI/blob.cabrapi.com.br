@@ -108,7 +108,10 @@ Persistencia:
 
 Base URL: `http://127.0.0.1:3000`
 
+
 ### 📤 Upload de Arquivo (Privado ou Público)
+
+> **Nota:** Se você não informar o campo `expiresAt`, o arquivo ficará disponível para sempre (não expira), até ser removido manualmente.
 
 **Privado (requer token admin):**
 
@@ -129,6 +132,15 @@ curl -X POST "http://127.0.0.1:3000/blob/upload" \
 	-F "public=true"
 ```
 
+**Com expiração (opcional):**
+
+```bash
+curl -X POST "http://127.0.0.1:3000/blob/upload" \
+	-H "x-admin-token: <TOKEN_SECRET>" \
+	-F "file=@./arquivo.pdf" \
+	-F "expiresAt=2026-12-31T23:59:59Z"
+```
+
 ### 📄 Listar Blobs
 
 **Somente públicos:**
@@ -143,12 +155,47 @@ curl "http://127.0.0.1:3000/blob?page=1&pageSize=5"
 curl -H "x-admin-token: <TOKEN_SECRET>" "http://127.0.0.1:3000/blob?page=1&pageSize=5"
 ```
 
-### 📥 Download de Blob
 
-**Público:**
+
+---
+
+### ⏳ Expiração de Arquivos
+
+- Se não informar `expiresAt`, o arquivo nunca expira.
+- Se informar `expiresAt` (ISO 8601 ou timestamp), o arquivo será removido automaticamente após essa data/hora.
+- Após expirar, nem mesmo o admin pode acessar o arquivo (erro 410).
+
+---
+
+### 📥 Download ou Visualização de Imagem
+
+**Visualizar imagem pública direto no navegador:**
+
+```
+http://127.0.0.1:3000/blob/<id>
+```
+
+Basta acessar a URL acima no navegador. O Content-Type será o da imagem (ex: image/png, image/jpeg).
+
+**Baixar imagem pública via curl:**
 
 ```bash
-curl -L "http://127.0.0.1:3000/blob/<id>" --output arquivo.bin
+curl -L "http://127.0.0.1:3000/blob/<id>" --output minha-imagem.jpg
+```
+
+**Baixar imagem privada (admin):**
+
+```bash
+curl -L -H "x-admin-token: <TOKEN_SECRET>" "http://127.0.0.1:3000/blob/<id>" --output minha-imagem.jpg
+```
+
+**Baixar imagem privada (externo, via URL assinada):**
+
+```bash
+# Gere a URL assinada
+curl "http://127.0.0.1:3000/blob/<id>/sign?ttl=300"
+# Use a URL retornada
+curl -L "http://127.0.0.1:3000/blob/<id>?exp=<exp>&n=<nonce>&sig=<sig>" --output minha-imagem.jpg
 ```
 
 **Privado (admin):**
@@ -172,24 +219,12 @@ curl -L "http://127.0.0.1:3000/blob/<id>?exp=<exp>&n=<nonce>&sig=<sig>" --output
 curl -X DELETE -H "x-admin-token: <TOKEN_SECRET>" "http://127.0.0.1:3000/blob/<id>"
 ```
 
----
-
-
----
-
-
----
-
-
 ## 🔒 Segurança
 
 - Assinatura HMAC-SHA512 com `nonce` e expiração
 - Validação de `bucket`/`key` e bloqueio de path traversal
 - Rate limit por IP nas rotas privadas
 - Headers `x-ratelimit-remaining` e `x-ratelimit-reset`
-
-
----
 
 ## 📜 Scripts
 
@@ -202,9 +237,6 @@ npm run db:prepare
 npm run typecheck
 npm run check
 ```
-
-
----
 
 ## 🛠️ Troubleshooting
 
