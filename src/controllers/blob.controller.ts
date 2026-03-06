@@ -213,11 +213,21 @@ export async function uploadBlob(
       return;
     }
 
+    // Permite definir expiresAt opcionalmente (ISO string ou timestamp)
+    let expiresAt: Date | undefined = undefined;
+    if (req.body.expiresAt) {
+      const date = new Date(req.body.expiresAt);
+      if (!isNaN(date.getTime())) {
+        expiresAt = date;
+      }
+    }
+
     const blob = await saveBlob(req.file, {
       bucket: req.body.bucket,
       key: req.body.key,
       isPublic: parseBoolean(req.body.public),
       metadata: req.body.metadata,
+      expiresAt,
     });
 
     res.status(201).json(blob);
@@ -333,29 +343,46 @@ export async function getBlob(
     }
 
     if (!blob.public) {
-      const exp = Number(req.query.exp);
-      const sig = req.query.sig;
-      const nonce = req.query.n;
+      // Permite acesso permanente para admin
+      if (hasAdminAccess(req)) {
+        // Se houver expiresAt e já expirou, bloqueia até para admin
+        if (blob.expiresAt && new Date() > new Date(blob.expiresAt)) {
+          res.status(410).json({ error: "Blob expired" });
+          return;
+        }
+        // Admin pode baixar sem assinatura
+      } else {
+        // Para acesso externo, exige assinatura válida
+        const exp = Number(req.query.exp);
+        const sig = req.query.sig;
+        const nonce = req.query.n;
 
-      if (!req.query.exp || !req.query.sig || !req.query.n) {
-        res.status(403).json({
-          error:
-            "Private blob requires signed URL. Use GET /blob/:id/sign first.",
-        });
-        return;
-      }
+        if (!req.query.exp || !req.query.sig || !req.query.n) {
+          res.status(403).json({
+            error:
+              "Private blob requires signed URL. Use GET /blob/:id/sign first.",
+          });
+          return;
+        }
 
-      if (
-        !verifySignature({
-          id: blob.id,
-          exp,
-          nonce: String(nonce),
-          sig: String(sig),
-          method: req.method,
-        })
-      ) {
-        res.status(403).json({ error: "Invalid or expired signature" });
-        return;
+        // Se houver expiresAt e já expirou, bloqueia
+        if (blob.expiresAt && new Date() > new Date(blob.expiresAt)) {
+          res.status(410).json({ error: "Blob expired" });
+          return;
+        }
+
+        if (
+          !verifySignature({
+            id: blob.id,
+            exp,
+            nonce: String(nonce),
+            sig: String(sig),
+            method: req.method,
+          })
+        ) {
+          res.status(403).json({ error: "Invalid or expired signature" });
+          return;
+        }
       }
     }
 
@@ -456,11 +483,24 @@ export async function getBlobSignedUrl(
       return;
     }
 
+    // Se houver expiresAt e já expirou, não gera URL
+    if (blob.expiresAt && new Date() > new Date(blob.expiresAt)) {
+      res.status(410).json({ error: "Blob expired" });
+      return;
+    }
+
     const requestedTtl = Number(req.query.ttl ?? 300);
     const minTtl = CONFIG.signedUrlTtlMinSeconds;
     const maxTtl = CONFIG.signedUrlTtlMaxSeconds;
     const ttlInSeconds = Math.min(maxTtl, Math.max(minTtl, requestedTtl));
-    const exp = Math.floor(Date.now() / 1000) + ttlInSeconds;
+    // Se expiresAt for menor que o exp calculado, limita expiração ao expiresAt
+    let exp = Math.floor(Date.now() / 1000) + ttlInSeconds;
+    if (blob.expiresAt) {
+      const expiresAtSec = Math.floor(new Date(blob.expiresAt).getTime() / 1000);
+      if (expiresAtSec < exp) {
+        exp = expiresAtSec;
+      }
+    }
     const nonce = createNonce();
     const sig = sign({
       id: blob.id,
@@ -474,7 +514,7 @@ export async function getBlobSignedUrl(
       exp,
       n: nonce,
       sig,
-      ttl: ttlInSeconds,
+      ttl: exp - Math.floor(Date.now() / 1000),
       url: `/blob/${blob.id}?exp=${exp}&n=${nonce}&sig=${sig}`,
     });
     return;

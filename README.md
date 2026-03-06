@@ -98,6 +98,7 @@ Base URL: `http://127.0.0.1:3000`
 - `key` (opcional)
 - `public` (opcional: `true|false`)
 - `metadata` (opcional: JSON string)
+- `expiresAt` (opcional: ISO 8601 ou timestamp)
 
 Exemplo com `curl`:
 
@@ -108,7 +109,8 @@ curl -X POST "http://127.0.0.1:3000/blob/upload" \
 	-F "bucket=docs" \
 	-F "key=contratos/arquivo.pdf" \
 	-F "public=false" \
-	-F 'metadata={"origem":"manual"}'
+	-F 'metadata={"origem":"manual"}' \
+	-F "expiresAt=2026-12-31T23:59:59Z"
 ```
 
 ### Visualizar Blob Publico
@@ -148,6 +150,38 @@ curl -H "x-admin-token: <TOKEN_SECRET>" "http://127.0.0.1:3000/blob?page=1&pageS
 ```bash
 curl -X DELETE -H "x-admin-token: <TOKEN_SECRET>" "http://127.0.0.1:3000/blob/<id>"
 ```
+
+### Expiração de Blobs Privados
+
+- Por padrão, arquivos privados não expiram automaticamente.
+- Você pode definir uma data de expiração ao fazer upload usando o campo `expiresAt` (ISO 8601 ou timestamp).
+- Após a expiração (`expiresAt`), nem mesmo o admin pode acessar o arquivo.
+- URLs assinadas (GET /blob/:id/sign) sempre respeitam o TTL solicitado, mas nunca ultrapassam a data de expiração se definida.
+- O admin pode baixar arquivos privados a qualquer momento (sem TTL/assinatura), exceto se expirados.
+
+#### Exemplo de upload com expiração:
+
+```bash
+curl -X POST "http://127.0.0.1:3000/blob/upload" \
+	-H "x-admin-token: <TOKEN_SECRET>" \
+	-F "file=@./arquivo.pdf" \
+	-F "expiresAt=2026-12-31T23:59:59Z"
+```
+
+#### Exemplo de download como admin (sem TTL):
+
+```bash
+curl -L -H "x-admin-token: <TOKEN_SECRET>" "http://127.0.0.1:3000/blob/<id>" --output arquivo.bin
+```
+
+#### Exemplo de download externo (URL assinada, respeita expiração):
+
+```bash
+curl "http://127.0.0.1:3000/blob/<id>/sign?ttl=3600"
+curl -L "http://127.0.0.1:3000/blob/<id>?exp=<exp>&n=<nonce>&sig=<sig>" --output arquivo.bin
+```
+
+Se o arquivo estiver expirado, qualquer tentativa de acesso retorna erro 410 (Gone).
 
 ## Seguranca
 

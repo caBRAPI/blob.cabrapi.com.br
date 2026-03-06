@@ -19,6 +19,7 @@ type SaveBlobOptions = {
   key?: string;
   isPublic?: boolean;
   metadata?: unknown;
+  expiresAt?: Date;
 };
 
 /**
@@ -164,6 +165,7 @@ function createBlobRecord(
     public: Boolean(options.isPublic),
     version: 1,
     metadata: (options.metadata as string | null) ?? null,
+    expiresAt: options.expiresAt,
   };
 }
 

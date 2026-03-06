@@ -22,6 +22,7 @@ model Blob {
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
   downloads Int      @default(0)
+  expiresAt DateTime?
   @@unique([bucket, key, version])
   @@index([bucket, key])
 }
