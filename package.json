@@ -1,0 +1,47 @@
+{
+  "name": "blob.cabrapi.com.br",
+  "type": "module",
+  "version": "05.03.2026",
+  "scripts": {
+    "start": "node ./src/main.js",
+    "dev": "node --watch ./src/main.js",
+    "check": "npx @biomejs/biome check --write",
+    "lint": "npx @biomejs/biome lint --write",
+    "format": "npx @biomejs/biome format --write"
+  },
+  "imports": {
+    "#db/*": "./src/database/*.js",
+    "#config/*": "./src/config/*.js",
+    "#services/*": "./src/services/*.js",
+    "#middlewares/*": "./src/middleware/*.js",
+    "#routes/*": "./src/routes/*.js",
+    "#controllers/*": "./src/controllers/*.js",
+    "#functions/*": "./src/functions/*.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.4.2",
+    "bullmq": "^5.70.3",
+    "busboy": "^1.6.0",
+    "chalk": "^5.6.2",
+    "compression": "^1.8.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "file-type": "^21.3.0",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.10.0",
+    "mime": "^4.1.0",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
+    "sharp": "^0.34.5",
+    "uuid": "^13.0.0",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.4",
+    "dotenv": "^17.3.1",
+    "prisma": "^7.4.2"
+  }
+}

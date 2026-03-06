@@ -1,0 +1,24 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.4/schema.json",
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "lineEnding": "lf",
+    "indentWidth": 2,
+    "lineWidth": 80
+  },
+  "linter": {
+    "enabled": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!node_modules",
+      "!dist",
+      "!build",
+      "!.astro",
+      "!out",
+      "!coverage"
+    ]
+  }
+}
