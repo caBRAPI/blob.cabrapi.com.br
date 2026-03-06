@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base"],
+  "assignees": ["sebastianjnuwu"],
+  "schedule": ["0 0 1 */6 *"], 
+  "dependencyDashboard": false,
+  "fetchReleaseNotes": true,
+  "packageRules": [
+    {
+      "matchPackagePatterns": ["*"],
+      "labels": ["dependencies"],
+      "automerge": true
+    }
+  ]
+}
