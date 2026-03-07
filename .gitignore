@@ -1,3 +1,4 @@
+storage/
 tmp/
 logs/
 .env

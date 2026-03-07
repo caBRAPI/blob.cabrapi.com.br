@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"blob/src/functions"
+	"blob/src/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -33,7 +34,13 @@ func Postgres() {
 
 	if err := sqlDB.Ping(); err != nil {
 		functions.Error("[POSTGRES ERROR] %v", err)
-	} else {
-		functions.Info("[POSTGRES] Connected successfully.")
+		return
 	}
+
+	if err := DB.AutoMigrate(&models.Blob{}); err != nil {
+		functions.Error("[POSTGRES ERROR] AutoMigrate: %v", err)
+		return
+	}
+
+	functions.Info("[POSTGRES] Connected successfully.")
 }

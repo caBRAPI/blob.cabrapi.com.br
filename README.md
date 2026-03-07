@@ -37,13 +37,72 @@
 ## Usage Examples (cURL)
 
 ### GET `/`
+
 ```bash
 curl -X GET "http://localhost:3000/"
-# {"message":"Hello, World!"}
+```
+
+#### response
+
+```json
+{ "message": "Hello, World!" }
 ```
 
 ### GET `/health`
+
 ```bash
 curl -X GET "http://localhost:3000/health"
-# {"status":"ok"}
+```
+
+#### response
+
+```json
+{ "status": "ok" }
+```
+
+
+### PUT `/blob` (Upload)
+
+
+**Accepted upload fields:**
+
+| Field       | Required | Type     | Description                                                                 |
+|-------------|----------|----------|-----------------------------------------------------------------------------|
+| file        | Yes      | file     | The file to upload                                                          |
+| filename    | No       | string   | Name to save the file as (default: original upload name)                     |
+| bucket      | Yes      | string   | Bucket name (logical group)                                                  |
+| public      | No       | boolean  | Whether the blob is public (default: true). Accepts "true", "false", "0", "1" |
+| expires_at  | No       | string   | Expiration date/time in RFC3339 format (e.g. 2026-03-08T12:00:00Z)           |
+| metadata    | No       | string   | JSON string with additional metadata                                         |
+
+
+**Example usage:**
+
+```bash
+curl -X PUT "http://localhost:3000/blob" \
+  -H "Authorization: Bearer change-me-with-32-characters-or-more" \
+  -F "file=@README.md" \
+  -F "bucket=test" \
+  -F "filename=custom_name.txt" \
+  -F "public=false" \
+  -F "expires_at=2026-03-02T12:00:00Z" \
+  -F "metadata={\"author\":\"user\",\"desc\":\"test file\"}"
+```
+
+#### response
+
+```json
+{
+  "id": "1ddff9d2-3aa1-485d-8082-e484c62ff630",
+  "bucket": "test",
+  "filename": "README.md",
+  "mime": "application/octet-stream",
+  "size": 3625,
+  "hash": "1ddff9d2-3aa1-485d-8082-e484c62ff630",
+  "path": "storage/uploads/1ddff9d2-3aa1-485d-8082-e484c62ff630",
+  "public": true,
+  "created_at": "2026-03-07T12:31:05.2082654-03:00",
+  "updated_at": "2026-03-07T12:31:05.2082654-03:00",
+  "url": "http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630"
+}
 ```

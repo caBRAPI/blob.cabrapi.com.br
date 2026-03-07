@@ -5,6 +5,8 @@ import (
 	"blob/src/functions"
 	"blob/src/middleware"
 	"blob/src/routes"
+	"blob/src/services"
+	queue "blob/src/services/queue"
 	"net/http"
 	"os"
 	"strings"
@@ -17,6 +19,10 @@ func main() {
 	godotenv.Load()
 	database.Redis()
 	database.Postgres()
+
+	services.InitAsynq()
+	queue.StartQueueWorker()
+	queue.StartCleanupScheduler()
 
 	mux := http.NewServeMux()
 	limiter := middleware.Variables()
@@ -49,4 +55,5 @@ func main() {
 
 	functions.Info("[SERVER] Server running at: http://%s:%s", host, port)
 	http.ListenAndServe(host+":"+port, handler)
+
 }
