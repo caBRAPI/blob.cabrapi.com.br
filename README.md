@@ -1,85 +1,87 @@
-# Blob (Binary Large OBject)
+# Blob (Binary Large Object)
+
+Simple HTTP service for storing and retrieving binary files (blobs) with metadata.
 
 ## Routes
 
-| Method  |           Route               | Private | Description                           |
-|---------|-------------------------------|---------|---------------------------------------|
-| `PUT`   | `/blob`                       | `true`  | Upload Blob (full)                    |
-| `POST`  | `/blob/:id/stream`            | `true`  | Upload Blob in streaming mode         |
-| `GET`   | `/blob`                       | `true`  | List blobs                            |
-| `GET`   | `/blob/:id`                   | `false` | Download Blob (full)                  |
-| `GET`   | `/blob/:id/stream`            | `false` | Download Blob in streaming mode       |
-| `HEAD`  | `/blob/:id`                   | `false` | Blob metadata                          |
-| `POST`  | `/blob/:id/metadata`          | `true`  | Edit metadata                          |
-| `DELETE`| `/blob/:id`                   | `true`  | Delete blob                            |
-| `GET`   | `/health`                     | `false` | Healthcheck                            |
-| `GET`   | `/`                           | `false` | Hello, World                            |
+| Method | Route                | Private | Description            |
+| ------ | -------------------- | ------- | ---------------------- |
+| PUT    | `/blob`              | true    | Upload a blob          |
+| GET    | `/blob`              | true    | List blobs             |
+| GET    | `/blob/:id`          | false   | Get blob metadata      |
+| POST   | `/blob/:id`          | true    | Edit blob fields       |
+| DELETE | `/blob/:id`          | true    | Delete blob            |
+| GET    | `/health`            | false   | Healthcheck            |
+| GET    | `/`                  | false   | Hello, World           |
 
 ## Database Schema
 
-| Column           | Type        | Nullable | Description                                      |
-|------------------|-------------|----------|--------------------------------------------------|
-| `id`             | UUID        | No       | Unique identifier for each blob                 |
-| `bucket`         | TEXT        | No       | Logical grouping for files                      |
-| `filename`       | TEXT        | No       | Original file name                              |
-| `mime`           | TEXT        | No       | File MIME type                                  |
-| `size`           | BIGINT      | No       | File size in bytes                               |
-| `hash`           | TEXT        | No       | Unique hash for integrity/deduplication         |
-| `path`           | TEXT        | No       | Storage path or reference                       |
-| `public`         | BOOLEAN     | Yes      | Whether blob is publicly accessible             |
-| `download_count` | INT         | Yes      | Number of times the blob has been downloaded   |
-| `metadata`       | JSONB       | Yes      | Optional metadata in JSON format (custom data) |
-| `created_at`     | TIMESTAMPTZ | No       | Timestamp when blob was created                 |
-| `updated_at`     | TIMESTAMPTZ | No       | Timestamp when blob was last updated            |
-| `expires_at`     | TIMESTAMPTZ | Yes      | Optional expiration date for automatic cleanup |
-| `deleted_at`     | TIMESTAMPTZ | Yes      | Timestamp when blob was deleted (soft delete)  |
+| Column         | Type        | Nullable | Description                  |
+| -------------- | ----------- | -------- | ---------------------------- |
+| id             | UUID        | No       | Unique identifier            |
+| bucket         | TEXT        | No       | Logical group of files       |
+| filename       | TEXT        | No       | File name                    |
+| mime           | TEXT        | No       | MIME type                    |
+| size           | BIGINT      | No       | File size in bytes           |
+| hash           | TEXT        | No       | SHA256 hash of the file      |
+| path           | TEXT        | No       | Storage path                 |
+| public         | BOOLEAN     | Yes      | Whether blob is public       |
+| download_count | INT         | No       | Number of downloads          |
+| metadata       | JSONB       | Yes      | Additional metadata (JSON)   |
+| created_at     | TIMESTAMPTZ | No       | Creation timestamp           |
+| updated_at     | TIMESTAMPTZ | No       | Last update timestamp        |
+| expires_at     | TIMESTAMPTZ | Yes      | Optional expiration date     |
+| deleted_at     | TIMESTAMPTZ | Yes      | Soft delete timestamp        |
 
-## Usage Examples (cURL)
+## Usage Examples
 
 ### GET `/`
 
 ```bash
-curl -X GET "http://localhost:3000/"
+curl http://localhost:3000/
 ```
 
-#### response
+Response:
 
 ```json
-{ "message": "Hello, World!" }
+{
+  "message": "Hello, World!"
+}
 ```
 
 ### GET `/health`
 
 ```bash
-curl -X GET "http://localhost:3000/health"
+curl http://localhost:3000/health
 ```
 
-#### response
+Response:
 
 ```json
-{ "status": "ok" }
+{
+  "status": "ok"
+}
 ```
 
+### PUT `/blob`
 
-### PUT `/blob` (Upload)
+Uploads a new blob.
 
+#### Accepted Fields
 
-**Accepted upload fields:**
+| Field      | Required | Type    | Description                                                        |
+| ---------- | -------- | ------- | ------------------------------------------------------------------ |
+| file       | Yes      | file    | File to upload                                                     |
+| bucket     | Yes      | string  | Logical group                                                      |
+| filename   | No       | string  | Custom filename                                                    |
+| public     | No       | boolean | Accepts true, false, 0, 1 (default: true)                          |
+| expires_at | No       | string  | RFC3339 date                                                       |
+| metadata   | No       | string  | JSON metadata                                                      |
 
-| Field       | Required | Type     | Description                                                                 |
-|-------------|----------|----------|-----------------------------------------------------------------------------|
-| file        | Yes      | file     | The file to upload                                                           |
-| filename    | No       | string   | Name to save the file as (default: original upload name)                     |
-| bucket      | Yes      | string   | Bucket name (logical group)                                                  |
-| public      | No       | boolean  | Whether the blob is public (default: true). Accepts "true", "false", "0", "1" |
-| expires_at  | No       | string   | Expiration date/time in RFC3339 format (e.g. 2026-03-08T12:00:00Z)           |
-| metadata    | No       | string   | JSON string with additional metadata                                         |
-
-
-**Example usage:**
+#### Example
 
 ```bash
-curl -X PUT "http://localhost:3000/blob" \
+curl -X PUT http://localhost:3000/blob \
   -H "Authorization: Bearer change-me-with-32-characters-or-more" \
   -F "file=@README.md" \
   -F "bucket=test" \
@@ -89,7 +91,7 @@ curl -X PUT "http://localhost:3000/blob" \
   -F "metadata={\"author\":\"user\",\"desc\":\"test file\"}"
 ```
 
-#### response
+Response:
 
 ```json
 {
@@ -98,9 +100,10 @@ curl -X PUT "http://localhost:3000/blob" \
   "filename": "custom_name.txt",
   "mime": "application/octet-stream",
   "size": 3625,
-  "hash": "1ddff9d2-3aa1-485d-8082-e484c62ff630",
+  "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "path": "test/1ddff9d2-3aa1-485d-8082-e484c62ff630",
   "public": false,
+  "download_count": 0,
   "created_at": "2026-03-07T12:31:05.2082654-03:00",
   "updated_at": "2026-03-07T12:31:05.2082654-03:00",
   "expires_at": "2026-03-02T12:00:00Z",
@@ -111,27 +114,26 @@ curl -X PUT "http://localhost:3000/blob" \
 }
 ```
 
+### GET `/blob`
 
-### GET `/blob` (List Blobs)
+Returns paginated blobs.
 
-Returns a paginated list of blobs. Supports filtering by bucket and searching by filename.
+#### Query Parameters
 
-**Query parameters:**
+| Parameter | Required | Type   | Description              |
+| --------- | -------- | ------ | ------------------------ |
+| bucket    | No       | string | Filter by bucket         |
+| search    | No       | string | Search filename          |
+| page      | No       | int    | Page number (default: 1) |
+| page_size | No       | int    | Items per page           |
 
-| Parameter   | Required | Type   | Description                                              |
-|------------ |----------|--------|----------------------------------------------------------|
-| bucket      | No       | string | Filter by bucket name                                   |
-| search      | No       | string | Search by filename (partial match, case-insensitive)    |
-| page        | No       | int    | Page number (default: 1)                                |
-| page_size   | No       | int    | Number of items per page (default: 20, max: 100)        |
-
-**Example usage:**
+#### Example
 
 ```bash
-curl -X GET "http://localhost:3000/blob?bucket=test&search=report&page=1&page_size=10"
+curl "http://localhost:3000/blob?bucket=test&search=report&page=1&page_size=10"
 ```
 
-#### response
+Response:
 
 ```json
 {
@@ -152,12 +154,118 @@ curl -X GET "http://localhost:3000/blob?bucket=test&search=report&page=1&page_si
       "hash": "...",
       "path": "test/...",
       "public": true,
+      "download_count": 0,
       "created_at": "2026-03-07T12:31:05.2082654-03:00",
       "updated_at": "2026-03-07T12:31:05.2082654-03:00",
       "expires_at": null,
-      "metadata": {"author": "user"}
+      "metadata": {
+        "author": "user"
+      }
     }
     // ...more blobs
   ]
+}
+```
+
+### GET `/blob/:id`
+
+Returns blob metadata as JSON (does not download the file).
+
+#### Example
+
+```bash
+curl http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630
+```
+
+Response:
+
+```json
+{
+  "id": "1ddff9d2-3aa1-485d-8082-e484c62ff630",
+  "bucket": "test",
+  "filename": "custom_name.txt",
+  "mime": "application/octet-stream",
+  "size": 3625,
+  "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "path": "test/1ddff9d2-3aa1-485d-8082-e484c62ff630",
+  "public": false,
+  "download_count": 0,
+  "created_at": "2026-03-07T12:31:05.2082654-03:00",
+  "updated_at": "2026-03-07T12:31:05.2082654-03:00",
+  "expires_at": "2026-03-02T12:00:00Z",
+  "metadata": {
+    "author": "user",
+    "desc": "test file"
+  }
+}
+```
+
+### POST `/blob/:id`
+
+Edits blob fields: metadata, public/private, expiration date, bucket, and filename. Requires authentication.
+
+#### Request Body
+
+| Field      | Required | Type    | Description                                 |
+|------------|----------|---------|---------------------------------------------|
+| metadata   | No       | object  | New metadata (JSON object)                  |
+| public     | No       | boolean | Set blob as public or private               |
+| expires_at | No       | string  | RFC3339 expiration date                     |
+| bucket     | No       | string  | Change bucket name                          |
+| filename   | No       | string  | Change filename                             |
+
+#### Example
+
+```bash
+curl -X POST http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630 \
+  -H "Authorization: Bearer change-me-with-32-characters-or-more" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "metadata": {"author": "newuser", "desc": "updated file"},
+    "public": true,
+    "expires_at": "2026-04-01T12:00:00Z",
+    "filename": "new_name.txt"
+  }'
+```
+
+Response:
+
+```json
+{
+  "id": "1ddff9d2-3aa1-485d-8082-e484c62ff630",
+  "bucket": "bucket",
+  "filename": "new_name.txt",
+  "mime": "application/octet-stream",
+  "size": 3625,
+  "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "path": "newbucket/1ddff9d2-3aa1-485d-8082-e484c62ff630",
+  "public": true,
+  "download_count": 0,
+  "created_at": "2026-03-07T12:31:05.2082654-03:00",
+  "updated_at": "2026-03-07T12:31:05.2082654-03:00",
+  "expires_at": "2026-04-01T12:00:00Z",
+  "metadata": {
+    "author": "newuser",
+    "desc": "updated file"
+  }
+}
+```
+
+### DELETE `/blob/:id`
+
+Deletes a blob, its metadata, and the file from disk. Requires authentication.
+
+#### Example
+
+```bash
+curl -X DELETE http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630 \
+  -H "Authorization: Bearer change-me-with-32-characters-or-more"
+```
+
+Response:
+
+```json
+{
+  "message": "Blob deleted successfully"
 }
 ```

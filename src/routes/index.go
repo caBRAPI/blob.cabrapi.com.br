@@ -37,4 +37,20 @@ func RegisterRoutes(mux *http.ServeMux, limiter *middleware.RateLimiter) {
 		"GET /blob",
 		limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.ListBlobsController))),
 	)
+
+	// GET /blob/{id} (private)
+	mux.Handle(
+		"GET /blob/{id}",
+		limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.GetBlobController))),
+	)
+	// POST /blob/{id} (private)
+	mux.Handle(
+		"POST /blob/{id}",
+		limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.EditBlobController))),
+	)
+	// DELETE /blob/{id} (private)
+	mux.Handle(
+		"DELETE /blob/{id}",
+		limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.DeleteBlobController))),
+	)
 }

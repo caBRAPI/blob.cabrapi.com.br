@@ -10,6 +10,7 @@ import (
 	"blob/src/models"
 )
 
+// ListBlobsController handles GET /blob
 func ListBlobsController(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	bucket := q.Get("bucket")
