@@ -3,16 +3,17 @@ package controllers
 import (
 	"blob/src/database"
 	"blob/src/models"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
 
+// DownloadBlobController handles GET /blob/{id}/download
 func DownloadBlobController(w http.ResponseWriter, r *http.Request) {
 
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
@@ -41,7 +42,13 @@ func DownloadBlobController(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Only allow download if blob is public, hash matches, or token is valid
+	if blob.ExpiresAt != nil && blob.ExpiresAt.Before(time.Now()) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusGone)
+		w.Write([]byte(`{"error":"Blob expired"}`))
+		return
+	}
+
 	if blob.Public != nil && !*blob.Public {
 
 		hashParam := strings.TrimSpace(r.URL.Query().Get("hash"))
@@ -84,12 +91,23 @@ func DownloadBlobController(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// increment download counter
+	info, err := file.Stat()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	database.DB.Model(&blob).UpdateColumn("download_count", blob.DownloadCount+1)
 
 	w.Header().Set("Content-Type", blob.Mime)
 	w.Header().Set("Content-Disposition", `attachment; filename="`+blob.Filename+`"`)
 	w.Header().Set("Content-Length", strconv.FormatInt(blob.Size, 10))
 
-	_, _ = io.Copy(w, file)
+	http.ServeContent(
+		w,
+		r,
+		blob.Filename,
+		info.ModTime(),
+		file,
+	)
 }

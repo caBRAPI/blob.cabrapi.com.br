@@ -9,8 +9,8 @@ Simple HTTP service for storing and retrieving binary files (blobs) with metadat
 | PUT    | `/blob`              | true    | Upload a blob          |
 | GET    | `/blob`              | true    | List blobs             |
 | GET    | `/blob/:id`          | true    | Get blob metadata      |
-| GET    | `/blob/:id/download` | true    | Download blob file     |
 | POST   | `/blob/:id`          | true    | Edit blob fields       |
+| GET    | `/blob/:id/download` | false   | Download blob file     |
 | DELETE | `/blob/:id`          | true    | Delete blob            |
 | GET    | `/health`            | false   | Healthcheck            |
 | GET    | `/`                  | false   | Hello, World           |
@@ -201,15 +201,6 @@ Response:
 }
 ```
 
-### GET `/blob/:id/download`
-
-```bash
-curl -X GET \
-  http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630/download \
-  -H "Authorization: Bearer change-me-with-32-characters-or-more" \
-  -o downloaded_file.ext
-```
-
 ### POST `/blob/:id`
 
 Edits blob fields: metadata, public/private, expiration date, bucket, and filename. Requires authentication.
@@ -260,6 +251,40 @@ Response:
   }
 }
 ```
+
+
+### GET `/blob/:id/download`
+
+#### Downloading blobs
+
+For **public blobs**, simply access the route:
+
+```bash
+curl -X GET \
+  http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630/download \
+  -o downloaded_file.ext
+```
+
+For **private blobs**, you must provide either:
+
+- The SHA256 hash of the file as a query parameter:
+
+  ```bash
+  curl -X GET \
+    "http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630/download?hash=YOUR_FILE_HASH" \
+    -o downloaded_file.ext
+  ```
+
+- Or a valid authentication token in the Authorization header:
+
+  ```bash
+  curl -X GET \
+    http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630/download \
+    -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+    -o downloaded_file.ext
+  ```
+
+If neither a valid hash nor a valid token is provided for a private blob, the download will be denied.
 
 ### DELETE `/blob/:id`
 
