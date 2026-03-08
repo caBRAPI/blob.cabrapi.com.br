@@ -3,6 +3,7 @@ package multipart
 import (
 	"blob/src/database"
 	"blob/src/models"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -78,8 +79,18 @@ func UploadChunk(w http.ResponseWriter, r *http.Request) {
 			maxChunkSize = parsed
 		}
 	}
+	// Verificação de integridade: hash SHA256 do chunk
+	chunkHashHeader := r.Header.Get("X-Chunk-Hash")
+	if chunkHashHeader == "" {
+		http.Error(w, "Missing X-Chunk-Hash header", http.StatusBadRequest)
+		return
+	}
+
+	// Calcular hash SHA256 enquanto grava no arquivo, sem carregar tudo na memória
 	limitedReader := io.LimitReader(r.Body, maxChunkSize+1)
-	written, err := io.Copy(f, limitedReader)
+	hasher := sha256.New()
+	tee := io.TeeReader(limitedReader, hasher)
+	written, err := io.Copy(f, tee)
 	if err != nil {
 		http.Error(w, "Failed to write chunk", http.StatusInternalServerError)
 		return
@@ -90,6 +101,11 @@ func UploadChunk(w http.ResponseWriter, r *http.Request) {
 	}
 	if written > maxChunkSize {
 		http.Error(w, "Chunk too large (max "+strconv.FormatInt(maxChunkSize, 10)+" bytes)", http.StatusBadRequest)
+		return
+	}
+	calculatedHash := fmt.Sprintf("%x", hasher.Sum(nil))
+	if !strings.EqualFold(calculatedHash, chunkHashHeader) {
+		http.Error(w, "Chunk hash mismatch (integrity check failed)", http.StatusBadRequest)
 		return
 	}
 
