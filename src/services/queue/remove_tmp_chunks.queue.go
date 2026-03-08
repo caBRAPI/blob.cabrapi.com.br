@@ -35,7 +35,7 @@ func removeOldTmpChunks() error {
 	if db.Error != nil {
 		return db.Error
 	}
-	functions.Info("[TMP CLEANUP] Found %d unfinished uploads (completed=false, older than %v)", len(uploads), cutoff)
+	functions.Info("[TMP CLEANUP] Found %d unfinished uploads", len(uploads))
 	storagePath := os.Getenv("BLOB_STORAGE_PATH")
 	if storagePath == "" {
 		storagePath = "storage/uploads"

@@ -4,16 +4,43 @@ Simple HTTP service for storing and retrieving binary files (blobs) with metadat
 
 ## Docker Image
 
-### ![CI/CD](https://github.com/sebastianjnuwu/blob/actions/workflows/ci.yml/badge.svg)
+![CI/CD](https://github.com/sebastianjnuwu/blob/actions/workflows/ci.yml/badge.svg)
 
-This project automatically builds and publishes a Docker image to GitHub Container Registry (GHCR) on every push to `main`.
+This project automatically builds and publishes a Docker image to **GitHub Container Registry (GHCR)** on every push to the `main` branch.
 
-**To pull and run the latest image:**
+### Pull the latest image
 
 ```bash
 docker pull ghcr.io/sebastianjnuwu/blob:latest
-docker run -p 3000:3000 --env-file .env ghcr.io/sebastianjnuwu/blob:latest
 ```
+
+### Run the container
+
+```bash
+docker run -d \
+-p 3000:3000 \
+--env-file .env \
+-v ./storage:/storage \
+--name blob \
+ghcr.io/sebastianjnuwu/blob:latest
+```
+
+### What these options do
+
+* `-d`
+  Runs the container in the background.
+
+* `-p 3000:3000`
+  Maps port **3000 of the container** to **port 3000 on the host**.
+
+* `--env-file .env`
+  Loads environment variables from the `.env` file.
+
+* `-v ./storage:/storage`
+  Mounts a persistent storage directory so uploaded files are not lost.
+
+* `--name blob`
+  Gives the container an easy name for management.
 
 ## Routes
 
@@ -139,29 +166,55 @@ Response:
 ```bash
 curl -X POST http://localhost:3000/blob/initiate \
   -H "Content-Type: application/json" \
+  -H "X-User-ID: <user-uuid>" \
   -d '{"bucket":"bigfiles","filename":"video_20tb.mkv","size":21990232555520}'
 # Response: { "uploadId": "abc123" }
 ```
 
-#### 2. Upload each chunk:
+#### 2. Upload each chunk (with integrity check):
 ```bash
+CHUNK_HASH=$(sha256sum chunk_0.bin | awk '{print $1}')
 curl -X PUT http://localhost:3000/blob/abc123/chunk \
-  -H "Content-Range: bytes 0-1073741823/21990232555520" \
+  -H "X-User-ID: <user-uuid>" \
+  -H "X-Chunk-Index: 0" \
+  -H "X-Chunk-Hash: $CHUNK_HASH" \
   --data-binary "@chunk_0.bin"
-# Repeat for each chunk, adjusting Content-Range and file
+# Repeat for each chunk, incrementing index and hash
 ```
 
 #### 3. (Optional) Check status:
 ```bash
-curl http://localhost:3000/blob/abc123/status
+curl -H "X-User-ID: <user-uuid>" http://localhost:3000/blob/abc123/status
 ```
 
-#### 4. Complete upload:
+#### 4. Complete upload (with final hash):
 ```bash
-curl -X POST http://localhost:3000/blob/abc123/complete
+FINAL_HASH=$(sha256sum full_file.bin | awk '{print $1}')
+curl -X POST http://localhost:3000/blob/abc123/complete \
+  -H "X-User-ID: <user-uuid>" \
+  -H "X-Final-Hash: $FINAL_HASH"
 ```
 
 After completion, the file is available as a normal blob for download and management.
+
+#### Chunk Size Limits
+
+Configure minimum and maximum chunk size in `.env`:
+
+```
+BLOB_MIN_CHUNK_SIZE=1048576   # 1MB
+BLOB_MAX_CHUNK_SIZE=20971520  # 20MB
+```
+Chunks outside these limits will be rejected.
+
+#### Integrity Headers
+
+- `X-Chunk-Hash`: Required for each chunk (SHA256 hex of chunk)
+- `X-Final-Hash`: Required when completing upload (SHA256 hex of full file)
+
+#### Automatic Cleanup
+
+Abandoned multipart uploads are cleaned up automatically after a configurable threshold (see `.env`).
 
 ### GET `/blob`
 
