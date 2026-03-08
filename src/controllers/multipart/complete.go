@@ -95,7 +95,7 @@ func CompleteUpload(w http.ResponseWriter, r *http.Request) {
 		storagePath = "storage/uploads"
 	}
 	tmpDir := filepath.Join(storagePath, "tmp", uploadId)
-	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+	if err := os.MkdirAll(tmpDir, 0750); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		if err := json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create temp directory"}); err != nil {
@@ -117,7 +117,18 @@ func CompleteUpload(w http.ResponseWriter, r *http.Request) {
 
 	for _, idx := range chunks {
 		chunkPath := filepath.Join(tmpDir, fmt.Sprintf("chunk_%d", idx))
-		f, err := os.Open(chunkPath)
+		realChunkPath, err := filepath.Abs(chunkPath)
+		realTmpDir, err2 := filepath.Abs(tmpDir)
+		if err != nil || err2 != nil || !strings.HasPrefix(realChunkPath, realTmpDir) {
+			fFinal.Close()
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			if err := json.NewEncoder(w).Encode(map[string]string{"error": "Invalid chunk path"}); err != nil {
+				functions.Error("failed to encode error json (invalid chunk path): %v", err)
+			}
+			return
+		}
+		f, err := os.Open(realChunkPath)
 		if err != nil {
 			fFinal.Close()
 			w.Header().Set("Content-Type", "application/json")
@@ -183,7 +194,7 @@ func CompleteUpload(w http.ResponseWriter, r *http.Request) {
 	fFinal.Close()
 
 	bucketPath := filepath.Join(storagePath, upload.Bucket)
-	if err := os.MkdirAll(bucketPath, 0755); err != nil {
+	if err := os.MkdirAll(bucketPath, 0750); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		if err := json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create bucket directory"}); err != nil {
@@ -194,10 +205,20 @@ func CompleteUpload(w http.ResponseWriter, r *http.Request) {
 
 	finalID := uploadId
 	destPath := filepath.Join(bucketPath, finalID)
-	if err := os.Rename(finalPath, destPath); err != nil {
+	realDestPath, err := filepath.Abs(destPath)
+	realBucketPath, err2 := filepath.Abs(bucketPath)
+	if err != nil || err2 != nil || !strings.HasPrefix(realDestPath, realBucketPath) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(map[string]string{"error": "Invalid destination path"}); err != nil {
+			functions.Error("failed to encode error json (invalid dest path): %v", err)
+		}
+		return
+	}
+	if err := os.Rename(finalPath, realDestPath); err != nil {
 		in, errIn := os.Open(finalPath)
 		if errIn == nil {
-			out, errOut := os.Create(destPath)
+			out, errOut := os.Create(realDestPath)
 			if errOut == nil {
 				_, _ = io.Copy(out, in)
 				out.Close()

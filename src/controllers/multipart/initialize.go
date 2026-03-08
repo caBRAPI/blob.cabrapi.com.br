@@ -47,7 +47,7 @@ func InitiateUpload(w http.ResponseWriter, r *http.Request) {
 		storagePath = "storage/uploads"
 	}
 	tmpDir := filepath.Join(storagePath, "tmp", upload.ID.String())
-	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+	if err := os.MkdirAll(tmpDir, 0750); err != nil {
 		http.Error(w, "Failed to create temp directory", http.StatusInternalServerError)
 		return
 	}

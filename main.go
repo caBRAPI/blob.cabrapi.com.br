@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
@@ -59,7 +60,14 @@ func main() {
 	}
 
 	functions.Info("[SERVER] Server running at: http://%s:%s", host, port)
-	if err := http.ListenAndServe(host+":"+port, handler); err != nil {
+	srv := &http.Server{
+		Addr:         host + ":" + port,
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
 		functions.Error("server error: %v", err)
 	}
 

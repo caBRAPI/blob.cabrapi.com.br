@@ -5,7 +5,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"blob/src/database"
@@ -18,6 +20,7 @@ import (
 
 func UploadBlobController(w http.ResponseWriter, r *http.Request) {
 
+	r.Body = http.MaxBytesReader(w, r.Body, 32<<20) // 32MB limite, ajuste conforme necessário
 	bucket := r.FormValue("bucket")
 	filename := r.FormValue("filename")
 	publicStr := r.FormValue("public")
@@ -114,15 +117,28 @@ func UploadBlobController(w http.ResponseWriter, r *http.Request) {
 		filename = header.Filename
 	}
 
+	if strings.Contains(bucket, "..") || strings.ContainsAny(bucket, "/\\") {
+		functions.WriteJSONError(w, "Invalid bucket name", http.StatusBadRequest)
+		return
+	}
+	if filename != "" && (strings.Contains(filename, "..") || strings.ContainsAny(filename, "/\\")) {
+		functions.WriteJSONError(w, "Invalid filename", http.StatusBadRequest)
+		return
+	}
 	bucketPath := storagePath + string(os.PathSeparator) + bucket
-	if err := os.MkdirAll(bucketPath, 0755); err != nil {
+	if err := os.MkdirAll(bucketPath, 0750); err != nil {
 		functions.WriteJSONError(w, "Failed to create bucket directory", http.StatusInternalServerError)
 		return
 	}
 
 	blobPath := bucketPath + string(os.PathSeparator) + id.String()
-
-	out, err := os.Create(blobPath)
+	realBlobPath, err := filepath.Abs(blobPath)
+	realBucketPath, err2 := filepath.Abs(bucketPath)
+	if err != nil || err2 != nil || !strings.HasPrefix(realBlobPath, realBucketPath) {
+		functions.WriteJSONError(w, "Invalid file path", http.StatusBadRequest)
+		return
+	}
+	out, err := os.Create(realBlobPath)
 	if err != nil {
 		functions.WriteJSONError(w, "Failed to save file", http.StatusInternalServerError)
 		return

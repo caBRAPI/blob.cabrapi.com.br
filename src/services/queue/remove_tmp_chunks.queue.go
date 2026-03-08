@@ -8,6 +8,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -43,15 +44,19 @@ func removeOldTmpChunks() error {
 	for _, upload := range uploads {
 		tmpDir := filepath.Join(storagePath, "tmp", upload.ID.String())
 		functions.Info("[TMP CLEANUP] Checking tmp dir: %s", tmpDir)
-		if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
-			functions.Warn("[TMP CLEANUP] Tmp dir does not exist: %s", tmpDir)
+		realTmpDir, err := filepath.Abs(tmpDir)
+		realStoragePath, err2 := filepath.Abs(storagePath)
+		if err != nil || err2 != nil || !strings.HasPrefix(realTmpDir, realStoragePath) {
+			functions.Warn("[TMP CLEANUP] Invalid tmp dir: %s", tmpDir)
+		} else if _, err := os.Stat(realTmpDir); os.IsNotExist(err) {
+			functions.Warn("[TMP CLEANUP] Tmp dir does not exist: %s", realTmpDir)
 		} else if err != nil {
-			functions.Warn("[TMP CLEANUP] Error checking tmp dir %s: %v", tmpDir, err)
+			functions.Warn("[TMP CLEANUP] Error checking tmp dir %s: %v", realTmpDir, err)
 		} else {
-			if err := os.RemoveAll(tmpDir); err != nil {
-				functions.Warn("[TMP CLEANUP] Failed to remove %s: %v", tmpDir, err)
+			if err := os.RemoveAll(realTmpDir); err != nil {
+				functions.Warn("[TMP CLEANUP] Failed to remove %s: %v", realTmpDir, err)
 			} else {
-				functions.Info("[TMP CLEANUP] Removed %s", tmpDir)
+				functions.Info("[TMP CLEANUP] Removed %s", realTmpDir)
 			}
 		}
 		// Double-check completed field before deleting

@@ -7,6 +7,8 @@ import (
 	"blob/src/services"
 	"context"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -70,16 +72,27 @@ func removeExpiredBlobs() error {
 	for _, blob := range expired {
 		if blob.Path != "" {
 			functions.Info("[QUEUE] Attempting to remove file: %s", blob.Path)
-			if stat, statErr := os.Stat(blob.Path); statErr != nil {
-				functions.Warn("[QUEUE] File stat error for %s: %v", blob.Path, statErr)
-			} else {
-				functions.Info("[QUEUE] File exists. Size: %d, Mode: %v", stat.Size(), stat.Mode())
+			storagePath := os.Getenv("BLOB_STORAGE_PATH")
+			if storagePath == "" {
+				storagePath = "storage/uploads"
 			}
-			err := os.Remove(blob.Path)
-			if err != nil {
-				functions.Warn("[QUEUE] os.Remove error for %s: %v", blob.Path, err)
+			filePath := storagePath + string(os.PathSeparator) + blob.Path
+			realFilePath, err := filepath.Abs(filePath)
+			realStoragePath, err2 := filepath.Abs(storagePath)
+			if err == nil && err2 == nil && strings.HasPrefix(realFilePath, realStoragePath) {
+				if stat, statErr := os.Stat(realFilePath); statErr != nil {
+					functions.Warn("[QUEUE] File stat error for %s: %v", realFilePath, statErr)
+				} else {
+					functions.Info("[QUEUE] File exists. Size: %d, Mode: %v", stat.Size(), stat.Mode())
+				}
+				err := os.Remove(realFilePath)
+				if err != nil {
+					functions.Warn("[QUEUE] os.Remove error for %s: %v", realFilePath, err)
+				} else {
+					functions.Info("[QUEUE] File removed: %s", realFilePath)
+				}
 			} else {
-				functions.Info("[QUEUE] File removed: %s", blob.Path)
+				functions.Warn("[QUEUE] Invalid file path: %s", filePath)
 			}
 		}
 		delErr := database.DB.Delete(&blob).Error

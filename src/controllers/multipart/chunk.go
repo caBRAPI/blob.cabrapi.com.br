@@ -54,13 +54,24 @@ func UploadChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid X-Chunk-Index header", http.StatusBadRequest)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 32<<20) // 32MB limite, ajuste conforme necessário
 	storagePath := os.Getenv("BLOB_STORAGE_PATH")
 	if storagePath == "" {
 		storagePath = "storage/uploads"
 	}
 	tmpDir := filepath.Join(storagePath, "tmp", uploadId)
+	if err := os.MkdirAll(tmpDir, 0750); err != nil {
+		http.Error(w, "Failed to create temp directory", http.StatusInternalServerError)
+		return
+	}
 	chunkPath := filepath.Join(tmpDir, fmt.Sprintf("chunk_%d", chunkIdx))
-	f, err := os.Create(chunkPath)
+	realChunkPath, err := filepath.Abs(chunkPath)
+	realTmpDir, err2 := filepath.Abs(tmpDir)
+	if err != nil || err2 != nil || !strings.HasPrefix(realChunkPath, realTmpDir) {
+		http.Error(w, "Invalid chunk path", http.StatusBadRequest)
+		return
+	}
+	f, err := os.Create(realChunkPath)
 	if err != nil {
 		http.Error(w, "Failed to save chunk", http.StatusInternalServerError)
 		return

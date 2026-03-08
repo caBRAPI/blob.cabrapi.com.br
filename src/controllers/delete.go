@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"blob/src/database"
@@ -52,7 +53,11 @@ func DeleteBlobController(w http.ResponseWriter, r *http.Request) {
 			storagePath = "storage/uploads"
 		}
 		filePath := storagePath + string(os.PathSeparator) + blob.Path
-		_ = os.Remove(filePath)
+		realFilePath, err := filepath.Abs(filePath)
+		realStoragePath, err2 := filepath.Abs(storagePath)
+		if err == nil && err2 == nil && strings.HasPrefix(realFilePath, realStoragePath) {
+			_ = os.Remove(realFilePath)
+		}
 	}
 
 	// Remove from DB
