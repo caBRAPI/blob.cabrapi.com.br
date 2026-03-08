@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -64,9 +65,31 @@ func UploadChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-	_, err = io.Copy(f, r.Body)
+
+	minChunkSize := int64(1 * 1024 * 1024)  // 1MB
+	maxChunkSize := int64(20 * 1024 * 1024) // 20MB
+	if v := os.Getenv("BLOB_MIN_CHUNK_SIZE"); v != "" {
+		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil && parsed > 0 {
+			minChunkSize = parsed
+		}
+	}
+	if v := os.Getenv("BLOB_MAX_CHUNK_SIZE"); v != "" {
+		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil && parsed > 0 {
+			maxChunkSize = parsed
+		}
+	}
+	limitedReader := io.LimitReader(r.Body, maxChunkSize+1)
+	written, err := io.Copy(f, limitedReader)
 	if err != nil {
 		http.Error(w, "Failed to write chunk", http.StatusInternalServerError)
+		return
+	}
+	if written < minChunkSize {
+		http.Error(w, "Chunk too small (min "+strconv.FormatInt(minChunkSize, 10)+" bytes)", http.StatusBadRequest)
+		return
+	}
+	if written > maxChunkSize {
+		http.Error(w, "Chunk too large (max "+strconv.FormatInt(maxChunkSize, 10)+" bytes)", http.StatusBadRequest)
 		return
 	}
 
