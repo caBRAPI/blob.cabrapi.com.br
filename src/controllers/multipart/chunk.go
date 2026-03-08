@@ -54,7 +54,13 @@ func UploadChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid X-Chunk-Index header", http.StatusBadRequest)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 32<<20) // 32MB limite, ajuste conforme necessário
+	maxChunkSize := int64(32 << 20)
+	if v := os.Getenv("BLOB_MAX_CHUNK_SIZE"); v != "" {
+		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil && parsed > 0 {
+			maxChunkSize = parsed
+		}
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxChunkSize)
 	storagePath := os.Getenv("BLOB_STORAGE_PATH")
 	if storagePath == "" {
 		storagePath = "storage/uploads"
@@ -79,7 +85,7 @@ func UploadChunk(w http.ResponseWriter, r *http.Request) {
 	defer f.Close()
 
 	minChunkSize := int64(1 * 1024 * 1024)  // 1MB
-	maxChunkSize := int64(20 * 1024 * 1024) // 20MB
+	maxChunkSize = int64(20 * 1024 * 1024) // 20MB
 	if v := os.Getenv("BLOB_MIN_CHUNK_SIZE"); v != "" {
 		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil && parsed > 0 {
 			minChunkSize = parsed

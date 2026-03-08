@@ -20,7 +20,13 @@ import (
 
 func UploadBlobController(w http.ResponseWriter, r *http.Request) {
 
-	r.Body = http.MaxBytesReader(w, r.Body, 32<<20) // 32MB limite, ajuste conforme necessário
+	maxChunkSize := int64(32 << 20)
+	if v := os.Getenv("BLOB_MAX_CHUNK_SIZE"); v != "" {
+		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil && parsed > 0 {
+			maxChunkSize = parsed
+		}
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxChunkSize)
 	bucket := r.FormValue("bucket")
 	filename := r.FormValue("filename")
 	publicStr := r.FormValue("public")
