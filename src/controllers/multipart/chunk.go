@@ -84,7 +84,7 @@ func UploadChunk(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	minChunkSize := int64(1 * 1024 * 1024)  // 1MB
+	minChunkSize := int64(1 * 1024 * 1024) // 1MB
 	maxChunkSize = int64(20 * 1024 * 1024) // 20MB
 	if v := os.Getenv("BLOB_MIN_CHUNK_SIZE"); v != "" {
 		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil && parsed > 0 {
