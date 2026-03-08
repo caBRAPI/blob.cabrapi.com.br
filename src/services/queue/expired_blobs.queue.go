@@ -21,6 +21,7 @@ func handleDeleteExpiredBlobs(ctx context.Context, t *asynq.Task) error {
 func StartQueueWorker() {
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(TypeDeleteExpiredBlobs, handleDeleteExpiredBlobs)
+	mux.HandleFunc(TypeRemoveTmpChunks, handleRemoveTmpChunks)
 	go func() {
 		if services.AsynqServer == nil {
 			functions.Error("[QUEUE ERROR] AsynqServer is nil! Did you call InitAsynq() first?")

@@ -27,6 +27,7 @@ func main() {
 	services.InitAsynq()
 	queue.StartQueueWorker()
 	queue.StartCleanupScheduler()
+	queue.StartTmpCleanupScheduler()
 
 	mux := http.NewServeMux()
 	limiter := middleware.Variables()
