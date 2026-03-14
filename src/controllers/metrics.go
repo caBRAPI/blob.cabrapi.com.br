@@ -4,6 +4,7 @@ import (
 	"blob/src/database"
 	"blob/src/functions"
 	"blob/src/models"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -33,22 +34,38 @@ func BlobMetricsController(w http.ResponseWriter, r *http.Request) {
 	var totalBlobs int64
 	database.DB.Model(&models.Blob{}).Count(&totalBlobs)
 
-	var totalSize int64
-	database.DB.Model(&models.Blob{}).Select("SUM(size)").Scan(&totalSize)
+	var totalSizeNull sql.NullInt64
+	database.DB.Model(&models.Blob{}).Select("SUM(size)").Scan(&totalSizeNull)
+	totalSize := int64(0)
+	if totalSizeNull.Valid {
+		totalSize = totalSizeNull.Int64
+	}
 
 	storageFree := maxStorage - totalSize
 
 	var avgSize float64
 	database.DB.Model(&models.Blob{}).Select("AVG(size)").Scan(&avgSize)
 
-	var downloadCount int64
-	database.DB.Model(&models.Blob{}).Select("SUM(download_count)").Scan(&downloadCount)
+	var downloadCountNull sql.NullInt64
+	database.DB.Model(&models.Blob{}).Select("SUM(download_count)").Scan(&downloadCountNull)
+	downloadCount := int64(0)
+	if downloadCountNull.Valid {
+		downloadCount = downloadCountNull.Int64
+	}
 
-	var maxSize int64
-	database.DB.Model(&models.Blob{}).Select("MAX(size)").Scan(&maxSize)
+	var maxSizeNull sql.NullInt64
+	database.DB.Model(&models.Blob{}).Select("MAX(size)").Scan(&maxSizeNull)
+	maxSize := int64(0)
+	if maxSizeNull.Valid {
+		maxSize = maxSizeNull.Int64
+	}
 
-	var minSize int64
-	database.DB.Model(&models.Blob{}).Select("MIN(size)").Scan(&minSize)
+	var minSizeNull sql.NullInt64
+	database.DB.Model(&models.Blob{}).Select("MIN(size)").Scan(&minSizeNull)
+	minSize := int64(0)
+	if minSizeNull.Valid {
+		minSize = minSizeNull.Int64
+	}
 
 	var publicCount int64
 	database.DB.Model(&models.Blob{}).Where("public = true").Count(&publicCount)
