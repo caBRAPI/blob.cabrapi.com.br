@@ -43,8 +43,12 @@ func BlobMetricsController(w http.ResponseWriter, r *http.Request) {
 
 	storageFree := maxStorage - totalSize
 
-	var avgSize float64
-	database.DB.Model(&models.Blob{}).Select("AVG(size)").Scan(&avgSize)
+	var avgSizeNull sql.NullFloat64
+	database.DB.Model(&models.Blob{}).Select("AVG(size)").Scan(&avgSizeNull)
+	avgSize := float64(0)
+	if avgSizeNull.Valid {
+		avgSize = avgSizeNull.Float64
+	}
 
 	var downloadCountNull sql.NullInt64
 	database.DB.Model(&models.Blob{}).Select("SUM(download_count)").Scan(&downloadCountNull)
