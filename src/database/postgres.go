@@ -13,9 +13,9 @@ import (
 var DB *gorm.DB
 
 func Postgres() {
-	dsn := os.Getenv("DATABASE_URL")
+	dsn := os.Getenv("BLOB_DATABASE_URL")
 	if dsn == "" {
-		functions.Error("[POSTGRES ERROR] DATABASE_URL environment variable is not set")
+		functions.Error("[POSTGRES ERROR] BLOB_DATABASE_URL environment variable is not set")
 		os.Exit(1)
 	}
 
