@@ -1,0 +1,26 @@
+name: Spellcheck (typos)
+
+on:
+  push:
+    paths:
+      - '**.go'
+      - '**.md'
+      - '**.txt'
+      - 'typos.toml'
+  pull_request:
+    paths:
+      - '**.go'
+      - '**.md'
+      - '**.txt'
+      - 'typos.toml'
+
+jobs:
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install typos
+        uses: crate-ci/typos@v1.21.0
+      - name: Run typos
+        run: typos .
