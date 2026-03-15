@@ -110,7 +110,7 @@ func DownloadBlobController(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	database.DB.Model(&blob).UpdateColumn("download_count", blob.DownloadCount+1)
+	database.DB.Model(&blob).Update("download_count", blob.DownloadCount+1)
 
 	w.Header().Set("Content-Type", blob.Mime)
 	w.Header().Set("Content-Disposition", `attachment; filename="`+blob.Filename+`"`)
