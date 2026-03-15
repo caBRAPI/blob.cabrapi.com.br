@@ -2,17 +2,11 @@ name: Spellcheck (typos)
 
 on:
   push:
-    paths:
-      - '**.go'
-      - '**.md'
-      - '**.txt'
-      - 'typos.toml'
+    branches:
+      - main
   pull_request:
-    paths:
-      - '**.go'
-      - '**.md'
-      - '**.txt'
-      - 'typos.toml'
+    branches:
+      - main
 
 jobs:
   typos:
