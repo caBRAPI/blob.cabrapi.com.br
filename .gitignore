@@ -2,4 +2,5 @@ storage/
 vendor/
 tmp/
 logs/
+*.exe
 .env

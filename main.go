@@ -16,7 +16,11 @@ import (
 	"github.com/rs/cors"
 )
 
+var Version = "N/A"
+
 func main() {
+
+	functions.Info("Starting Blob API Version: %s", Version)
 
 	if err := godotenv.Load(); err != nil {
 		functions.Error("No .env file found, relying on environment variables")
