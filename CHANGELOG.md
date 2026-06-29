@@ -7,8 +7,15 @@ The format follows Keep a Changelog principles, organized by date.
 ## [2026-06-29]
 
 ### Added
-- Initial project structure.
 - Added `view_count` tracking for inline file views (`/blob/:id/view`).
 
 ### Changed
-- Metrics now include `total_views` in the summary.
+- Updated file serving flow to use explicit counters per route:
+	- `/blob/:id/download` increments `download_count`
+	- `/blob/:id/view` increments `view_count`
+- Metrics summary now includes `total_views`.
+- Updated API documentation examples and schema with `view_count`.
+
+### Fixed
+- Added legacy-safe counter increment using `COALESCE(..., 0) + 1`.
+- Added startup backfill to normalize `NULL` values in `download_count` and `view_count` to `0`.

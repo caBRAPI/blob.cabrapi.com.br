@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func serveBlobFile(w http.ResponseWriter, r *http.Request, disposition string) {
+func serveBlobFile(w http.ResponseWriter, r *http.Request, disposition string, counterField string) {
 
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 
@@ -110,14 +110,9 @@ func serveBlobFile(w http.ResponseWriter, r *http.Request, disposition string) {
 		return
 	}
 
-	counterField := "download_count"
-	if disposition == "inline" {
-		counterField = "view_count"
-	}
-
 	database.DB.Model(&models.Blob{}).
 		Where("id = ?", blob.ID).
-		Update(counterField, gorm.Expr(counterField+" + ?", 1))
+		Update(counterField, gorm.Expr("COALESCE("+counterField+", 0) + ?", 1))
 
 	w.Header().Set("Content-Type", blob.Mime)
 	w.Header().Set("Content-Disposition", disposition+`; filename="`+blob.Filename+`"`)
@@ -144,5 +139,5 @@ func DownloadBlobController(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serveBlobFile(w, r, "attachment")
+	serveBlobFile(w, r, "attachment", "download_count")
 }

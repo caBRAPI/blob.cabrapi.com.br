@@ -19,5 +19,5 @@ func ViewBlobController(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serveBlobFile(w, r, "inline")
+	serveBlobFile(w, r, "inline", "view_count")
 }
