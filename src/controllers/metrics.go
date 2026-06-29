@@ -57,6 +57,13 @@ func BlobMetricsController(w http.ResponseWriter, r *http.Request) {
 		downloadCount = downloadCountNull.Int64
 	}
 
+	var viewCountNull sql.NullInt64
+	database.DB.Model(&models.Blob{}).Select("SUM(view_count)").Scan(&viewCountNull)
+	viewCount := int64(0)
+	if viewCountNull.Valid {
+		viewCount = viewCountNull.Int64
+	}
+
 	var maxSizeNull sql.NullInt64
 	database.DB.Model(&models.Blob{}).Select("MAX(size)").Scan(&maxSizeNull)
 	maxSize := int64(0)
@@ -141,6 +148,7 @@ func BlobMetricsController(w http.ResponseWriter, r *http.Request) {
 		"min_size":            formatSize(float64(minSize)),
 		"multipart_completed": multipartCompleted,
 		"total_downloads":     downloadCount,
+		"total_views":         viewCount,
 		"storage_max":         formatSize(float64(maxStorage)),
 		"storage_free":        formatSize(float64(storageFree)),
 	}

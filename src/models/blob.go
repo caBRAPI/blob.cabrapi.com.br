@@ -18,6 +18,7 @@ type Blob struct {
 	Path          string         `gorm:"type:text;not null" json:"path"`
 	Public        *bool          `gorm:"type:boolean" json:"public,omitempty"`
 	DownloadCount int            `gorm:"type:int" json:"download_count"`
+	ViewCount     int            `gorm:"type:int" json:"view_count"`
 	Metadata      datatypes.JSON `gorm:"type:jsonb" json:"metadata,omitempty"`
 	CreatedAt     time.Time      `gorm:"type:timestamptz;not null;autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"type:timestamptz;not null;autoUpdateTime" json:"updated_at"`

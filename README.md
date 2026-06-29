@@ -74,6 +74,7 @@ ghcr.io/sebastianjnuwu/blob:latest
 | path           | TEXT        | No       | Storage path                 |
 | public         | BOOLEAN     | Yes      | Whether blob is public       |
 | download_count | INT         | No       | Number of downloads          |
+| view_count     | INT         | No       | Number of inline views       |
 | metadata       | JSONB       | Yes      | Additional metadata (JSON)   |
 | created_at     | TIMESTAMPTZ | No       | Creation timestamp           |
 | updated_at     | TIMESTAMPTZ | No       | Last update timestamp        |
@@ -148,6 +149,7 @@ Response:
         "storage_max": "1.00 GB",
         "total_blobs": 9,
         "total_downloads": 0,
+        "total_views": 0,
         "total_size": "8.32 MB"
     },
     "types": [
@@ -201,6 +203,7 @@ Response:
   "path": "test/1ddff9d2-3aa1-485d-8082-e484c62ff630",
   "public": false,
   "download_count": 0,
+  "view_count": 0,
   "created_at": "2026-03-07T12:31:05.2082654-03:00",
   "updated_at": "2026-03-07T12:31:05.2082654-03:00",
   "expires_at": "2026-03-02T12:00:00Z",
@@ -309,6 +312,7 @@ Response:
       "path": "test/...",
       "public": true,
       "download_count": 0,
+      "view_count": 0,
       "created_at": "2026-03-07T12:31:05.2082654-03:00",
       "updated_at": "2026-03-07T12:31:05.2082654-03:00",
       "expires_at": null,
@@ -344,6 +348,7 @@ Response:
   "path": "test/1ddff9d2-3aa1-485d-8082-e484c62ff630",
   "public": false,
   "download_count": 0,
+  "view_count": 0,
   "created_at": "2026-03-07T12:31:05.2082654-03:00",
   "updated_at": "2026-03-07T12:31:05.2082654-03:00",
   "expires_at": "2026-03-02T12:00:00Z",
@@ -396,6 +401,7 @@ Response:
   "path": "newbucket/1ddff9d2-3aa1-485d-8082-e484c62ff630",
   "public": true,
   "download_count": 0,
+  "view_count": 0,
   "created_at": "2026-03-07T12:31:05.2082654-03:00",
   "updated_at": "2026-03-07T12:31:05.2082654-03:00",
   "expires_at": "2026-04-01T12:00:00Z",

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 func serveBlobFile(w http.ResponseWriter, r *http.Request, disposition string) {
@@ -109,7 +110,14 @@ func serveBlobFile(w http.ResponseWriter, r *http.Request, disposition string) {
 		return
 	}
 
-	database.DB.Model(&blob).Update("download_count", blob.DownloadCount+1)
+	counterField := "download_count"
+	if disposition == "inline" {
+		counterField = "view_count"
+	}
+
+	database.DB.Model(&models.Blob{}).
+		Where("id = ?", blob.ID).
+		Update(counterField, gorm.Expr(counterField+" + ?", 1))
 
 	w.Header().Set("Content-Type", blob.Mime)
 	w.Header().Set("Content-Disposition", disposition+`; filename="`+blob.Filename+`"`)
