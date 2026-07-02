@@ -63,7 +63,7 @@ jobs:
           ls -lh blob
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v4
 
       - name: Login GHCR
         run: echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u sebastianjnuwu --password-stdin
