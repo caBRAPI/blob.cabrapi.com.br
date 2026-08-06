@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/subtle"
 	"strings"
 
 	"blob/src/config"
@@ -75,7 +76,7 @@ func Keys() []APIKey {
 func matchKey(bearer string) *APIKey {
 	keys := Keys()
 	for i := range keys {
-		if keys[i].Token == bearer {
+		if subtle.ConstantTimeCompare([]byte(keys[i].Token), []byte(bearer)) == 1 {
 			return &keys[i]
 		}
 	}
@@ -96,7 +97,7 @@ func Verify(bearerToken string) *APIKey {
 	if bearerToken == "" {
 		return nil
 	}
-	if masterToken() != "" && bearerToken == masterToken() {
+	if masterToken() != "" && subtle.ConstantTimeCompare([]byte(bearerToken), []byte(masterToken())) == 1 {
 		return &APIKey{Token: bearerToken, Perms: defaultPermissions()}
 	}
 	return matchKey(bearerToken)
