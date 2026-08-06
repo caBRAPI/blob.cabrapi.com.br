@@ -58,6 +58,14 @@ func EditBlobController(w http.ResponseWriter, r *http.Request) {
 		input.Bucket = req.Bucket
 	}
 	if req.Filename != nil && *req.Filename != "" {
+		if len(*req.Filename) > 255 {
+			functions.WriteJSONError(w, "filename must be 1-255 chars", http.StatusBadRequest)
+			return
+		}
+		if strings.Contains(*req.Filename, "..") || strings.ContainsAny(*req.Filename, "/\\") {
+			functions.WriteJSONError(w, "Invalid filename", http.StatusBadRequest)
+			return
+		}
 		input.Filename = req.Filename
 	}
 
