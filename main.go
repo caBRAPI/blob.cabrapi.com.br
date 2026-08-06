@@ -18,7 +18,7 @@ import (
 	"github.com/rs/cors"
 )
 
-var Version = "Desenvolvimento"
+var Version = "SNAPSHOT"
 
 func main() {
 
