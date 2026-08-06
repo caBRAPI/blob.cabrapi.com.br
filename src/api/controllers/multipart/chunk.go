@@ -36,7 +36,7 @@ func UploadChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var chunkIdx int
-	if _, err := fmt.Sscanf(chunkIdxStr, "%d", &chunkIdx); err != nil {
+	if _, err := fmt.Sscanf(chunkIdxStr, "%d", &chunkIdx); err != nil || chunkIdx < 0 {
 		http.Error(w, "Invalid X-Chunk-Index header", http.StatusBadRequest)
 		return
 	}

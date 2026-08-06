@@ -3,6 +3,7 @@ package multipart
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"blob/src/api/validators"
 	"blob/src/auth"
@@ -22,12 +23,16 @@ func InitiateUpload(w http.ResponseWriter, r *http.Request) {
 		Filename string `json:"filename"`
 		Size     int64  `json:"size"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Bucket == "" || req.Filename == "" || req.Size <= 0 {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Bucket == "" || req.Size <= 0 {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 	if !validators.ValidateMultipartBucket(req.Bucket) {
 		http.Error(w, "Invalid bucket name", http.StatusBadRequest)
+		return
+	}
+	if req.Filename == "" || len(req.Filename) > 255 || strings.Contains(req.Filename, "..") || strings.ContainsAny(req.Filename, "/\\") {
+		http.Error(w, "Invalid filename", http.StatusBadRequest)
 		return
 	}
 

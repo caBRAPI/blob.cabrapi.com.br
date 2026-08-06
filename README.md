@@ -222,33 +222,41 @@ Response:
 #### 1. Initiate upload:
 ```bash
 curl -X POST http://localhost:3000/blob/initiate \
+  -H "Authorization: Bearer <api-key>" \
   -H "Content-Type: application/json" \
-  -H "X-User-ID: <user-uuid>" \
   -d '{"bucket":"bigfiles","filename":"video_20tb.mkv","size":21990232555520}'
 # Response: { "uploadId": "abc123" }
 ```
+
+Session ownership is derived from the authenticated `Authorization` bearer
+token, so there is no client-supplied user identifier. The declared `size`
+must not exceed `BLOB_MAX_UPLOAD_SIZE_BYTES` and is checked against
+`BLOB_MAX_STORAGE_SIZE` at initiate time.
 
 #### 2. Upload each chunk (with integrity check):
 ```bash
 CHUNK_HASH=$(sha256sum chunk_0.bin | awk '{print $1}')
 curl -X PUT http://localhost:3000/blob/abc123/chunk \
-  -H "X-User-ID: <user-uuid>" \
+  -H "Authorization: Bearer <api-key>" \
   -H "X-Chunk-Index: 0" \
   -H "X-Chunk-Hash: $CHUNK_HASH" \
   --data-binary "@chunk_0.bin"
 # Repeat for each chunk, incrementing index and hash
 ```
 
+Chunks accumulate against `BLOB_MAX_UPLOAD_SIZE_BYTES`; exceeding it rejects
+the chunk.
+
 #### 3. (Optional) Check status:
 ```bash
-curl -H "X-User-ID: <user-uuid>" http://localhost:3000/blob/abc123/status
+curl -H "Authorization: Bearer <api-key>" http://localhost:3000/blob/abc123/status
 ```
 
 #### 4. Complete upload (with final hash):
 ```bash
 FINAL_HASH=$(sha256sum full_file.bin | awk '{print $1}')
 curl -X POST http://localhost:3000/blob/abc123/complete \
-  -H "X-User-ID: <user-uuid>" \
+  -H "Authorization: Bearer <api-key>" \
   -H "X-Final-Hash: $FINAL_HASH"
 ```
 
