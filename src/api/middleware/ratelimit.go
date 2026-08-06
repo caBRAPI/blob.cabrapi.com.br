@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -27,9 +28,30 @@ func Variables() *RateLimiter {
 	}
 }
 
+// clientIP resolves the real client IP, honoring forwarded headers only when
+// the proxy is trusted (BLOB_TRUST_PROXY=true). Otherwise RemoteAddr is used.
+func clientIP(r *http.Request) string {
+	if config.Env != nil && config.Env.TrustProxy {
+		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+			first := strings.TrimSpace(strings.Split(fwd, ",")[0])
+			if first != "" {
+				return first
+			}
+		}
+		if real := r.Header.Get("X-Real-IP"); real != "" {
+			return strings.TrimSpace(real)
+		}
+	}
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return ip
+}
+
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		ip := clientIP(r)
 		key := "ratelimit:" + ip
 		count, err := database.RedisClient.Incr(database.Ctx, key).Result()
 		if err == nil && count == 1 {
