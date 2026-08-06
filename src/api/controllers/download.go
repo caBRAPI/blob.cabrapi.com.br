@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"os"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"blob/src/auth"
+	"blob/src/config"
 	"blob/src/functions"
 	"blob/src/metrics"
 	"blob/src/models"
@@ -44,9 +46,16 @@ func hasValidToken(r *http.Request) bool {
 }
 
 // hasValidHash checks the legacy ?hash= authorization for private blobs.
+// It can be disabled via BLOB_HASH_FALLBACK_ENABLED=false.
 func hasValidHash(r *http.Request, blob *models.Blob) bool {
+	if config.Env != nil && !config.Env.HashFallbackEnabled {
+		return false
+	}
 	hashParam := strings.TrimSpace(r.URL.Query().Get("hash"))
-	return blob.Hash != "" && hashParam != "" && hashParam == blob.Hash
+	if blob.Hash == "" || hashParam == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(hashParam), []byte(blob.Hash)) == 1
 }
 
 // canAccessBlob evaluates all authorization paths for a private blob:
