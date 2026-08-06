@@ -54,11 +54,13 @@ ghcr.io/sebastianjnuwu/blob:latest
 | GET    | `/blob`                        | true    | List blobs                            |
 | GET    | `/blob/:id`                    | true    | Get blob metadata                     |
 | POST   | `/blob/:id`                    | true    | Edit blob fields                      |
-| GET    | `/blob/:id/download`           | false   | Download blob file                    |
+| POST   | `/blob/:id/sign`               | true    | Generate signed download/view URLs    |
+| GET    | `/blob/:id/download`           | false   | Download blob file (supports Range)   |
 | GET    | `/blob/:id/view`               | false   | View blob inline (opens in browser)   |
 | DELETE | `/blob/:id`                    | true    | Delete blob                           |
-| GET    | `/metrics`                     | true    | Storage and usage metrics (JSON)        |
-| GET    | `/health`                      | false   | Healthcheck                           |
+| GET    | `/metrics`                     | true    | Storage and usage metrics (JSON)      |
+| GET    | `/health`                      | false   | Healthcheck (DB, Redis, storage)      |
+| GET    | `/version`                     | false   | Build version                         |
 | GET    | `/`                            | false   | Hello, World                          |
 
 ## Database Schema
@@ -417,6 +419,10 @@ Response:
 
 #### Downloading blobs
 
+Downloads support HTTP Range requests (`Range: bytes=start-end`), returning
+`206 Partial Content`, which enables pausable downloads, video/audio seeking and
+streaming of large files.
+
 For **public blobs**, simply access the route:
 
 ```bash
@@ -425,9 +431,34 @@ curl -X GET \
   -o downloaded_file.ext
 ```
 
-For **private blobs**, you must provide either:
+For **private blobs**, you must provide one of the following:
 
-- The SHA256 hash of the file as a query parameter:
+- A **signed URL** (recommended). Generate one with `POST /blob/:id/sign`:
+
+  ```bash
+  curl -X POST http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630/sign \
+    -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  ```
+
+  Response:
+  ```json
+  {
+    "id": "1ddff9d2-3aa1-485d-8082-e484c62ff630",
+    "expires_at": "2026-08-06T12:30:00Z",
+    "ttl": 900,
+    "download": "http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630/download?expires=1775565000&signature=<hmac>",
+    "view": "http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630/view?expires=1775565000&signature=<hmac>"
+  }
+  ```
+
+  Then use the returned URL (it expires after `BLOB_SIGNED_URL_TTL`):
+
+  ```bash
+  curl -X GET "http://localhost:3000/blob/1ddff9d2-3aa1-485d-8082-e484c62ff630/download?expires=1775565000&signature=<hmac>" \
+    -o downloaded_file.ext
+  ```
+
+- The SHA256 hash of the file as a query parameter (legacy fallback):
 
   ```bash
   curl -X GET \
@@ -444,7 +475,7 @@ For **private blobs**, you must provide either:
     -o downloaded_file.ext
   ```
 
-If neither a valid hash nor a valid token is provided for a private blob, the download will be denied.
+If none of these is provided for a private blob, the download will be denied.
 
 ### DELETE `/blob/:id`
 
