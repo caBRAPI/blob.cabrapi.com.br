@@ -51,10 +51,9 @@ func main() {
 	routes.RegisterRoutes(mux, limiter)
 
 	corsOpts := cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowCredentials: true,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type", "Accept", "Origin", "X-User-ID", "X-Chunk-Index", "X-Chunk-Hash", "X-Final-Hash", "Range"},
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
+		AllowedHeaders: []string{"Authorization", "Content-Type", "Accept", "Origin", "X-User-ID", "X-Chunk-Index", "X-Chunk-Hash", "X-Final-Hash", "Range"},
 	}
 	if cfg.CORSOrigins != "*" && cfg.CORSOrigins != "" {
 		origins := strings.Split(cfg.CORSOrigins, ",")
@@ -63,6 +62,9 @@ func main() {
 		}
 		corsOpts.AllowedOrigins = origins
 	}
+	// AllowCredentials cannot be combined with the "*" wildcard; auth is done
+	// via the Authorization header, so cookies are not needed.
+	corsOpts.AllowCredentials = len(corsOpts.AllowedOrigins) == 1 && corsOpts.AllowedOrigins[0] != "*"
 	handler := cors.New(corsOpts).Handler(mux)
 
 	functions.Info("[SERVER] Server running at: http://%s:%s", cfg.Host, cfg.Port)
