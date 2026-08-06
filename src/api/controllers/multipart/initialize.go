@@ -6,6 +6,7 @@ import (
 
 	"blob/src/api/validators"
 	"blob/src/auth"
+	"blob/src/config"
 	"blob/src/functions"
 	"blob/src/services"
 
@@ -14,6 +15,8 @@ import (
 
 // InitiateUpload handles POST /blob/initiate
 func InitiateUpload(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
 	var req struct {
 		Bucket   string `json:"bucket"`
 		Filename string `json:"filename"`
@@ -27,6 +30,23 @@ func InitiateUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid bucket name", http.StatusBadRequest)
 		return
 	}
+
+	cfg := config.Env
+	if cfg == nil {
+		cfg = config.Load()
+	}
+	if cfg.MaxUploadSize > 0 && req.Size > cfg.MaxUploadSize {
+		http.Error(w, "File too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+	if cfg.MaxStorageSize > 0 {
+		total, err := functions.GetTotalStorageSize(cfg.ResolveStoragePath())
+		if err == nil && total+req.Size > cfg.MaxStorageSize {
+			http.Error(w, "Storage limit exceeded", http.StatusInsufficientStorage)
+			return
+		}
+	}
+
 	userID := auth.UserIDFromRequest(r)
 	if userID == uuid.Nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)

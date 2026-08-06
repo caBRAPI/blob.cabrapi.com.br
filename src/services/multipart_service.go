@@ -57,6 +57,10 @@ func InitMultipartService() *MultipartService {
 // chunkBucket is the pseudo-bucket holding in-progress chunks.
 const chunkBucket = "tmp"
 
+// maxChunkStatusEntries bounds the chunk status response, preventing a single
+// request from allocating a huge missing-chunks list (CPU/memory DoS).
+const maxChunkStatusEntries = 10000
+
 // chunkKey returns the storage key for a chunk of a session.
 func chunkKey(uploadID uuid.UUID, index int) string {
 	return fmt.Sprintf("%s/chunk_%d", uploadID.String(), index)
@@ -146,6 +150,26 @@ func (s *MultipartService) UploadChunk(ctx context.Context, in ChunkInput) error
 		return fmt.Errorf("chunk hash mismatch (integrity check failed)")
 	}
 
+	// Enforce the per-upload size cap against the actual bytes stored so far,
+	// regardless of the declared size at initiate time.
+	if s.cfg.MaxUploadSize > 0 {
+		total := int64(written)
+		var existing []int
+		_ = json.Unmarshal(upload.ChunksDone, &existing)
+		for _, idx := range existing {
+			if idx == in.Index {
+				continue
+			}
+			if info, err := s.storage.Stat(ctx, chunkBucket, chunkKey(in.UploadID, idx)); err == nil {
+				total += info.Size
+			}
+		}
+		if total > s.cfg.MaxUploadSize {
+			_ = s.storage.Delete(ctx, chunkBucket, key)
+			return fmt.Errorf("upload exceeds max size (%d bytes)", s.cfg.MaxUploadSize)
+		}
+	}
+
 	var chunks []int
 	_ = json.Unmarshal(upload.ChunksDone, &chunks)
 	found := false
@@ -192,6 +216,9 @@ func (s *MultipartService) Status(ctx context.Context, uploadID, userID uuid.UUI
 		chunkMap[idx] = true
 	}
 	totalChunks := int((upload.Size + int64(chunkSize) - 1) / int64(chunkSize))
+	if totalChunks > maxChunkStatusEntries {
+		return nil, fmt.Errorf("upload too large to report chunk status")
+	}
 	var missing []int
 	for i := 0; i < totalChunks; i++ {
 		if !chunkMap[i] {
