@@ -70,13 +70,13 @@ func RegisterRoutes(mux *http.ServeMux, limiter *middleware.RateLimiter) {
 
 		// GET /blob/{id}/download (public, signed URL/hash/token authorized)
 		if strings.HasSuffix(path, "/download") || strings.HasSuffix(path, "/download/") {
-			controllers.DownloadBlobController(w, r)
+			limiter.Middleware(http.HandlerFunc(controllers.DownloadBlobController)).ServeHTTP(w, r)
 			return
 		}
 
 		// GET /blob/{id}/view (public, signed URL/hash/token authorized)
 		if strings.HasSuffix(path, "/view") || strings.HasSuffix(path, "/view/") {
-			controllers.ViewBlobController(w, r)
+			limiter.Middleware(http.HandlerFunc(controllers.ViewBlobController)).ServeHTTP(w, r)
 			return
 		}
 
