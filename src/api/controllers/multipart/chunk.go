@@ -1,6 +1,7 @@
 package multipart
 
 import (
+	"blob/src/auth"
 	"blob/src/config"
 	"blob/src/services"
 	"errors"
@@ -23,9 +24,9 @@ func UploadChunk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid uploadId", http.StatusBadRequest)
 		return
 	}
-	userID, err := uuid.Parse(r.Header.Get("X-User-ID"))
-	if err != nil {
-		http.Error(w, "Missing or invalid X-User-ID header", http.StatusUnauthorized)
+	userID := auth.UserIDFromRequest(r)
+	if userID == uuid.Nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 

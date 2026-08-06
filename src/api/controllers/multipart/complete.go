@@ -1,6 +1,7 @@
 package multipart
 
 import (
+	"blob/src/auth"
 	"blob/src/services"
 	"errors"
 	"net/http"
@@ -27,9 +28,9 @@ func CompleteUpload(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "Invalid uploadId", http.StatusBadRequest)
 		return
 	}
-	userID, err := uuid.Parse(r.Header.Get("X-User-ID"))
-	if err != nil {
-		writeJSONError(w, "Missing or invalid X-User-ID header", http.StatusUnauthorized)
+	userID := auth.UserIDFromRequest(r)
+	if userID == uuid.Nil {
+		writeJSONError(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 

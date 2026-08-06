@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"blob/src/api/validators"
+	"blob/src/auth"
 	"blob/src/functions"
 	"blob/src/services"
 
@@ -26,9 +27,9 @@ func InitiateUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid bucket name", http.StatusBadRequest)
 		return
 	}
-	userID, err := uuid.Parse(r.Header.Get("X-User-ID"))
-	if err != nil {
-		http.Error(w, "Missing or invalid X-User-ID header", http.StatusUnauthorized)
+	userID := auth.UserIDFromRequest(r)
+	if userID == uuid.Nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 

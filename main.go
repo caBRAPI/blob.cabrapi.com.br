@@ -53,7 +53,7 @@ func main() {
 	corsOpts := cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
-		AllowedHeaders: []string{"Authorization", "Content-Type", "Accept", "Origin", "X-User-ID", "X-Chunk-Index", "X-Chunk-Hash", "X-Final-Hash", "Range"},
+		AllowedHeaders: []string{"Authorization", "Content-Type", "Accept", "Origin", "X-Chunk-Index", "X-Chunk-Hash", "X-Final-Hash", "Range"},
 	}
 	if cfg.CORSOrigins != "*" && cfg.CORSOrigins != "" {
 		origins := strings.Split(cfg.CORSOrigins, ",")
