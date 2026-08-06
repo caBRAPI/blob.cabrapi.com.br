@@ -1,0 +1,66 @@
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: blob-postgres
+    environment:
+      POSTGRES_USER: blob
+      POSTGRES_PASSWORD: blob
+      POSTGRES_DB: blob
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blob -d blob"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: blob-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    container_name: blob-api
+    ports:
+      - "3000:3000"
+    environment:
+      BLOB_PORT: "3000"
+      BLOB_HOST: "0.0.0.0"
+      BLOB_DATABASE_URL: "postgresql://blob:blob@postgres:5432/blob"
+      REDIS_URL: "redis://redis:6379/0"
+      BLOB_STORAGE_PATH: "/data/uploads"
+      BLOB_TOKEN_SECRET: ${BLOB_TOKEN_SECRET:-}
+      BLOB_SIGNED_URL_SECRET: ${BLOB_SIGNED_URL_SECRET:-signed-url-secret-min-16-chars}
+      BLOB_API_KEYS: ${BLOB_API_KEYS:-teste-full:read,write,delete;teste-read:read}
+      BLOB_RATE_LIMIT_MAX: ${BLOB_RATE_LIMIT_MAX:-120}
+      BLOB_RATE_LIMIT_WINDOW_MS: ${BLOB_RATE_LIMIT_WINDOW_MS:-60000}
+      BLOB_ALLOWED_MIME_TYPES: ${BLOB_ALLOWED_MIME_TYPES:-*}
+      BLOB_MAX_UPLOAD_SIZE_BYTES: ${BLOB_MAX_UPLOAD_SIZE_BYTES:-104857600}
+      BLOB_MAX_STORAGE_SIZE: ${BLOB_MAX_STORAGE_SIZE:-1073741824}
+      BLOB_CORS_ORIGINS: ${BLOB_CORS_ORIGINS:-*}
+    volumes:
+      - uploads_data:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
