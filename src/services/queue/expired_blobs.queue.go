@@ -1,14 +1,11 @@
 package services
 
 import (
-	"blob/src/database"
+	"blob/src/config"
 	"blob/src/functions"
-	"blob/src/models"
 	"blob/src/services"
 	"context"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -17,7 +14,7 @@ import (
 const TypeDeleteExpiredBlobs = "blob:delete_expired"
 
 func handleDeleteExpiredBlobs(ctx context.Context, t *asynq.Task) error {
-	return removeExpiredBlobs()
+	return removeExpiredBlobs(ctx)
 }
 
 func StartQueueWorker() {
@@ -64,46 +61,15 @@ func StartCleanupScheduler() {
 	}()
 }
 
-func removeExpiredBlobs() error {
-	var expired []models.Blob
-	err := database.DB.Where("expires_at IS NOT NULL AND expires_at <= ?", time.Now()).Find(&expired).Error
+func removeExpiredBlobs(ctx context.Context) error {
+	if config.Env == nil {
+		config.Load()
+	}
+	removed, err := services.Blobs.PurgeExpired(ctx)
 	if err != nil {
-		functions.Error("[QUEUE] Failed to query expired blobs: %v", err)
+		functions.Error("[QUEUE] Failed to purge expired blobs: %v", err)
 		return err
 	}
-	for _, blob := range expired {
-		if blob.Path != "" {
-			functions.Info("[QUEUE] Attempting to remove file: %s", blob.Path)
-			storagePath := os.Getenv("BLOB_STORAGE_PATH")
-			if storagePath == "" {
-				storagePath = "storage/uploads"
-			}
-			filePath := storagePath + string(os.PathSeparator) + blob.Path
-			realFilePath, err := filepath.Abs(filePath)
-			realStoragePath, err2 := filepath.Abs(storagePath)
-			if err == nil && err2 == nil && strings.HasPrefix(realFilePath, realStoragePath) {
-				if stat, statErr := os.Stat(realFilePath); statErr != nil {
-					functions.Warn("[QUEUE] File stat error for %s: %v", realFilePath, statErr)
-				} else {
-					functions.Info("[QUEUE] File exists. Size: %d, Mode: %v", stat.Size(), stat.Mode())
-				}
-				err := os.Remove(realFilePath)
-				if err != nil {
-					functions.Warn("[QUEUE] os.Remove error for %s: %v", realFilePath, err)
-				} else {
-					functions.Info("[QUEUE] File removed: %s", realFilePath)
-				}
-			} else {
-				functions.Warn("[QUEUE] Invalid file path: %s", filePath)
-			}
-		}
-		delErr := database.DB.Delete(&blob).Error
-		if delErr != nil {
-			functions.Warn("[QUEUE] Failed to remove blob from DB: %v", delErr)
-		} else {
-			functions.Info("[QUEUE] Blob removed from DB: %s", blob.ID.String())
-		}
-	}
-	functions.Info("[QUEUE] Expired blobs expired finished. Total: %d", len(expired))
+	functions.Info("[QUEUE] Expired blobs removed. Total: %d", removed)
 	return nil
 }
