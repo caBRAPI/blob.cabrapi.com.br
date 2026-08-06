@@ -1,6 +1,6 @@
-storage/
+/storage/
 vendor/
-tmp/
+/tmp/
 logs/
 bin/
 *.exe
