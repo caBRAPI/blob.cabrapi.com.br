@@ -19,6 +19,8 @@ func EditBlobController(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
 	var req struct {
 		Metadata  map[string]interface{} `json:"metadata"`
 		Public    *bool                  `json:"public"`
@@ -32,7 +34,6 @@ func EditBlobController(w http.ResponseWriter, r *http.Request) {
 	}
 
 	input := services.EditInput{Metadata: req.Metadata, Public: req.Public}
-
 	if req.ExpiresAt != nil {
 		t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
 		if err != nil {
