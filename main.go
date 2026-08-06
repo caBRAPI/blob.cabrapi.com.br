@@ -1,14 +1,15 @@
 package main
 
 import (
+	"blob/src/api/middleware"
+	"blob/src/api/routes"
+	"blob/src/config"
 	"blob/src/database"
 	"blob/src/functions"
-	"blob/src/middleware"
-	"blob/src/routes"
 	"blob/src/services"
 	queue "blob/src/services/queue"
+	"blob/src/version"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/rs/cors"
 )
 
-var Version = "N/A"
+var Version = "Desenvolvimento"
 
 func main() {
 
@@ -29,7 +30,12 @@ func main() {
 	database.Redis()
 	database.Postgres()
 
+	cfg := config.Load()
+	version.V = Version
+
 	services.InitAsynq()
+	services.InitBlobService()
+	services.InitMultipartService()
 	queue.StartQueueWorker()
 	queue.StartCleanupScheduler()
 	queue.StartTmpCleanupScheduler()
@@ -38,15 +44,14 @@ func main() {
 	limiter := middleware.Variables()
 	routes.RegisterRoutes(mux, limiter)
 
-	corsOrigins := os.Getenv("BLOB_CORS_ORIGINS")
 	corsOpts := cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowCredentials: true,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type", "Accept", "Origin"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "Accept", "Origin", "X-User-ID", "X-Chunk-Index", "X-Chunk-Hash", "X-Final-Hash", "Range"},
 	}
-	if corsOrigins != "*" && corsOrigins != "" {
-		origins := strings.Split(corsOrigins, ",")
+	if cfg.CORSOrigins != "*" && cfg.CORSOrigins != "" {
+		origins := strings.Split(cfg.CORSOrigins, ",")
 		for i := range origins {
 			origins[i] = strings.TrimSpace(origins[i])
 		}
@@ -54,18 +59,9 @@ func main() {
 	}
 	handler := cors.New(corsOpts).Handler(mux)
 
-	port := os.Getenv("BLOB_PORT")
-	if port == "" {
-		port = "3000"
-	}
-	host := os.Getenv("BLOB_HOST")
-	if host == "" {
-		host = "localhost"
-	}
-
-	functions.Info("[SERVER] Server running at: http://%s:%s", host, port)
+	functions.Info("[SERVER] Server running at: http://%s:%s", cfg.Host, cfg.Port)
 	srv := &http.Server{
-		Addr:         host + ":" + port,
+		Addr:         cfg.Host + ":" + cfg.Port,
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,

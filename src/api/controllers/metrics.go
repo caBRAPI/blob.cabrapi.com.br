@@ -3,6 +3,7 @@ package controllers
 import (
 	"blob/src/database"
 	"blob/src/functions"
+	"blob/src/metrics"
 	"blob/src/models"
 	"database/sql"
 	"encoding/json"
@@ -152,6 +153,17 @@ func BlobMetricsController(w http.ResponseWriter, r *http.Request) {
 		"storage_max":         formatSize(float64(maxStorage)),
 		"storage_free":        formatSize(float64(storageFree)),
 	}
+
+	// Runtime (in-process) telemetry
+	runtime := metrics.Default.Snapshot()
+	summary["runtime_uploads"] = runtime.UploadsTotal
+	summary["runtime_downloads"] = runtime.DownloadsTotal
+	summary["runtime_views"] = runtime.ViewsTotal
+	summary["runtime_errors"] = runtime.ErrorsTotal
+	summary["uploads_per_minute"] = runtime.UploadsPerMinute
+	summary["downloads_per_minute"] = runtime.DownloadsPerMin
+	summary["avg_upload_ms"] = runtime.AvgUploadMs
+	summary["avg_download_ms"] = runtime.AvgDownloadMs
 
 	lastUploadMap := map[string]interface{}{
 		"bucket":     lastUpload.Bucket,

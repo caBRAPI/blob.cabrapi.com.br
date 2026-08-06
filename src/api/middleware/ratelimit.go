@@ -1,12 +1,11 @@
 package middleware
 
 import (
+	"blob/src/config"
 	"blob/src/database"
 	"encoding/json"
 	"net"
 	"net/http"
-	"os"
-	"strconv"
 	"time"
 )
 
@@ -20,11 +19,11 @@ type ErrorResponse struct {
 }
 
 func Variables() *RateLimiter {
-	max, _ := strconv.Atoi(os.Getenv("BLOB_RATE_LIMIT_MAX"))
-	windowMs, _ := strconv.Atoi(os.Getenv("BLOB_RATE_LIMIT_WINDOW_MS"))
+	max := config.Env.RateLimitMax
+	window := time.Duration(config.Env.RateLimitWindowMS) * time.Millisecond
 	return &RateLimiter{
 		max:    max,
-		window: time.Duration(windowMs) * time.Millisecond,
+		window: window,
 	}
 }
 

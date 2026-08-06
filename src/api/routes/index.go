@@ -1,10 +1,11 @@
 package routes
 
 import (
-	"blob/src/controllers"
-	multipart "blob/src/controllers/multipart"
+	"blob/src/api/controllers"
+	multipart "blob/src/api/controllers/multipart"
+	"blob/src/api/middleware"
+	"blob/src/auth"
 	"blob/src/functions"
-	"blob/src/middleware"
 	"net/http"
 	"strings"
 )
@@ -31,12 +32,19 @@ func RegisterRoutes(mux *http.ServeMux, limiter *middleware.RateLimiter) {
 		methodHandler("GET", limiter.Middleware(http.HandlerFunc(HealthHandler))),
 	)
 
-	// POST /blob/initiate (private)
+	// GET /version (public)
+	mux.Handle(
+		"/version",
+		methodHandler("GET", limiter.Middleware(http.HandlerFunc(VersionHandler))),
+	)
+
+	// POST /blob/initiate (private, write)
 	mux.Handle(
 		"/blob/initiate",
 		methodHandler("POST", limiter.Middleware(
-			middleware.AuthMiddleware(
+			middleware.RequirePermission(
 				http.HandlerFunc(multipart.InitiateUpload),
+				auth.PermWrite,
 			),
 		)),
 	)
@@ -45,10 +53,10 @@ func RegisterRoutes(mux *http.ServeMux, limiter *middleware.RateLimiter) {
 	mux.Handle("/blob", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "PUT":
-			limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.UploadBlobController))).ServeHTTP(w, r)
+			limiter.Middleware(middleware.RequirePermission(http.HandlerFunc(controllers.UploadBlobController), auth.PermWrite)).ServeHTTP(w, r)
 			return
 		case "GET":
-			limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.ListBlobsController))).ServeHTTP(w, r)
+			limiter.Middleware(middleware.RequirePermission(http.HandlerFunc(controllers.ListBlobsController), auth.PermRead)).ServeHTTP(w, r)
 			return
 		default:
 			functions.WriteJSONMethodNotAllowed(w)
@@ -56,17 +64,17 @@ func RegisterRoutes(mux *http.ServeMux, limiter *middleware.RateLimiter) {
 		}
 	}))
 
-	// Unified handler for dynamic /blob/* routes (download, view, get/edit/delete, multipart)
+	// Unified handler for dynamic /blob/* routes (download, view, get/edit/delete, sign, multipart)
 	mux.HandleFunc("/blob/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
-		// GET /blob/{id}/download (public)
+		// GET /blob/{id}/download (public, signed URL/hash/token authorized)
 		if strings.HasSuffix(path, "/download") || strings.HasSuffix(path, "/download/") {
 			controllers.DownloadBlobController(w, r)
 			return
 		}
 
-		// GET /blob/{id}/view (public)
+		// GET /blob/{id}/view (public, signed URL/hash/token authorized)
 		if strings.HasSuffix(path, "/view") || strings.HasSuffix(path, "/view/") {
 			controllers.ViewBlobController(w, r)
 			return
@@ -78,23 +86,28 @@ func RegisterRoutes(mux *http.ServeMux, limiter *middleware.RateLimiter) {
 			return
 		}
 
-		// multipart routes: /blob/{uploadId}/chunk, /blob/{uploadId}/complete, /blob/{uploadId}/status
+		// multipart + sign routes: /blob/{uploadId}/{chunk|complete|status|sign}
 		if len(parts) >= 3 {
 			uploadAction := parts[2]
 			switch uploadAction {
 			case "chunk":
 				if r.Method == "PUT" {
-					limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(multipart.UploadChunk))).ServeHTTP(w, r)
+					limiter.Middleware(middleware.RequirePermission(http.HandlerFunc(multipart.UploadChunk), auth.PermWrite)).ServeHTTP(w, r)
 					return
 				}
 			case "complete":
 				if r.Method == "POST" {
-					limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(multipart.CompleteUpload))).ServeHTTP(w, r)
+					limiter.Middleware(middleware.RequirePermission(http.HandlerFunc(multipart.CompleteUpload), auth.PermWrite)).ServeHTTP(w, r)
 					return
 				}
 			case "status":
 				if r.Method == "GET" {
-					limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(multipart.UploadStatus))).ServeHTTP(w, r)
+					limiter.Middleware(middleware.RequirePermission(http.HandlerFunc(multipart.UploadStatus), auth.PermRead)).ServeHTTP(w, r)
+					return
+				}
+			case "sign":
+				if r.Method == "POST" {
+					limiter.Middleware(middleware.RequirePermission(http.HandlerFunc(controllers.SignBlobController), auth.PermRead)).ServeHTTP(w, r)
 					return
 				}
 			}
@@ -105,13 +118,13 @@ func RegisterRoutes(mux *http.ServeMux, limiter *middleware.RateLimiter) {
 			if len(parts) == 2 || (len(parts) == 3 && parts[2] == "") {
 				switch r.Method {
 				case "GET":
-					limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.GetBlobController))).ServeHTTP(w, r)
+					limiter.Middleware(middleware.RequirePermission(http.HandlerFunc(controllers.GetBlobController), auth.PermRead)).ServeHTTP(w, r)
 					return
 				case "POST":
-					limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.EditBlobController))).ServeHTTP(w, r)
+					limiter.Middleware(middleware.RequirePermission(http.HandlerFunc(controllers.EditBlobController), auth.PermWrite)).ServeHTTP(w, r)
 					return
 				case "DELETE":
-					limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.DeleteBlobController))).ServeHTTP(w, r)
+					limiter.Middleware(middleware.RequirePermission(http.HandlerFunc(controllers.DeleteBlobController), auth.PermDelete)).ServeHTTP(w, r)
 					return
 				}
 			}
@@ -121,10 +134,10 @@ func RegisterRoutes(mux *http.ServeMux, limiter *middleware.RateLimiter) {
 		functions.WriteJSONMethodNotAllowed(w)
 	})
 
-	// GET /metrics (private)
+	// GET /metrics (private, read)
 	mux.Handle(
 		"/metrics",
-		methodHandler("GET", limiter.Middleware(middleware.AuthMiddleware(http.HandlerFunc(controllers.BlobMetricsController)))),
+		methodHandler("GET", limiter.Middleware(middleware.RequirePermission(http.HandlerFunc(controllers.BlobMetricsController), auth.PermRead))),
 	)
 
 }
