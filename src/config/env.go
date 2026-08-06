@@ -20,6 +20,8 @@ type Config struct {
 	APIKeys                string
 	SignedURLSecret        string
 	CORSOrigins            string
+	TrustProxy             bool
+	PublicURL              string
 	RateLimitMax           int
 	RateLimitWindowMS      int
 	AllowedMimeTypes       []string
@@ -32,6 +34,7 @@ type Config struct {
 	TmpCleanupThreshold    time.Duration
 	DedupEnabled           bool
 	SignedURLTTL           time.Duration
+	HashFallbackEnabled    bool
 }
 
 // Env is the process-wide configuration, populated by Load.
@@ -96,6 +99,8 @@ func Load() *Config {
 		APIKeys:                getenv("BLOB_API_KEYS", ""),
 		SignedURLSecret:        getenv("BLOB_SIGNED_URL_SECRET", ""),
 		CORSOrigins:            getenv("BLOB_CORS_ORIGINS", "*"),
+		TrustProxy:             getenvBool("BLOB_TRUST_PROXY", false),
+		PublicURL:              getenv("BLOB_PUBLIC_URL", ""),
 		RateLimitMax:           getenvInt("BLOB_RATE_LIMIT_MAX", 120),
 		RateLimitWindowMS:      getenvInt("BLOB_RATE_LIMIT_WINDOW_MS", 60000),
 		AllowedMimeTypes:       functions.SplitComma(getenv("BLOB_ALLOWED_MIME_TYPES", "image/png,image/jpeg,image/gif,image/webp")),
@@ -108,6 +113,7 @@ func Load() *Config {
 		TmpCleanupThreshold:    getenvDuration("BLOB_TMP_CLEANUP_THRESHOLD", 24*time.Hour),
 		DedupEnabled:           getenvBool("BLOB_DEDUP_ENABLED", false),
 		SignedURLTTL:           getenvDuration("BLOB_SIGNED_URL_TTL", 15*time.Minute),
+		HashFallbackEnabled:    getenvBool("BLOB_HASH_FALLBACK_ENABLED", true),
 	}
 	Env = cfg
 	return cfg
