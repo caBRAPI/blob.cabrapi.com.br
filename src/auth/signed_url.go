@@ -46,15 +46,14 @@ func VerifySignature(secret string, id string, action Action, expiresStr, signat
 	return hmac.Equal([]byte(expected), []byte(strings.ToLower(strings.TrimSpace(signature))))
 }
 
-// secret returns the configured HMAC secret, defaulting to the token secret.
+// secret returns the configured HMAC secret for signed URLs.
+// There is no fallback: a dedicated secret must be configured, otherwise
+// signing produces no valid links (validated at startup in main.go).
 func secret() string {
 	if config.Env == nil {
 		return ""
 	}
-	if config.Env.SignedURLSecret != "" {
-		return config.Env.SignedURLSecret
-	}
-	return config.Env.TokenSecret
+	return config.Env.SignedURLSecret
 }
 
 // Secret returns the HMAC secret used for signed URLs.
