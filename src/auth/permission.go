@@ -49,12 +49,14 @@ func defaultPermissions() map[Permission]bool {
 }
 
 // Keys returns the API keys configured for the process.
+// Entries are separated by ';' (not ',') because the permission list within an
+// entry is itself comma-separated: "k1:read,write;k2:read".
 func Keys() []APIKey {
 	var keys []APIKey
 	if config.Env == nil {
 		return keys
 	}
-	for _, entry := range strings.Split(config.Env.APIKeys, ",") {
+	for _, entry := range strings.Split(config.Env.APIKeys, ";") {
 		entry = strings.TrimSpace(entry)
 		if entry == "" {
 			continue
@@ -71,9 +73,10 @@ func Keys() []APIKey {
 
 // matchKey returns the API key matching the raw bearer token, or nil.
 func matchKey(bearer string) *APIKey {
-	for i := range Keys() {
-		if Keys()[i].Token == bearer {
-			return &Keys()[i]
+	keys := Keys()
+	for i := range keys {
+		if keys[i].Token == bearer {
+			return &keys[i]
 		}
 	}
 	return nil
