@@ -169,8 +169,22 @@ func (d *FilesystemDriver) pruneEmptyParents(path string) {
 		return
 	}
 	realBase = filepath.Clean(realBase)
-	dir := filepath.Dir(path)
+
+	realPath, err := filepath.Abs(path)
+	if err != nil {
+		return
+	}
+	dir := filepath.Clean(filepath.Dir(realPath))
+
 	for dir != realBase {
+		rel, err := filepath.Rel(realBase, dir)
+		if err != nil {
+			return
+		}
+		if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return
+		}
+
 		entries, err := os.ReadDir(dir)
 		if err != nil {
 			return
@@ -179,6 +193,9 @@ func (d *FilesystemDriver) pruneEmptyParents(path string) {
 			return
 		}
 		parent := filepath.Dir(dir)
+		if parent == dir {
+			return
+		}
 		if err := os.Remove(dir); err != nil {
 			return
 		}
