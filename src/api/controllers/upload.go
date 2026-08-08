@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -40,6 +41,24 @@ func UploadBlobController(w http.ResponseWriter, r *http.Request) {
 			"fields": errs,
 		}); err != nil {
 			functions.Error("failed to encode validation error json: %v", err)
+		}
+		return
+	}
+
+	cleanBucket := filepath.Clean(fields.Bucket)
+	if fields.Bucket == "" ||
+		filepath.IsAbs(fields.Bucket) ||
+		strings.Contains(fields.Bucket, "\\") ||
+		cleanBucket == "." ||
+		cleanBucket == ".." ||
+		strings.HasPrefix(cleanBucket, "../") ||
+		strings.Contains(cleanBucket, "/../") {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Invalid bucket",
+		}); err != nil {
+			functions.Error("failed to encode invalid bucket json: %v", err)
 		}
 		return
 	}
