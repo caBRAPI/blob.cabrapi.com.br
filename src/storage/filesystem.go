@@ -41,8 +41,31 @@ func ensureInside(base, target string) (string, error) {
 	return realTarget, nil
 }
 
+// validateRelativePathComponent ensures user-controlled path parts are safe.
+// It allows nested relative paths (for bucket subfolders) but rejects traversal
+// and absolute paths.
+func validateRelativePathComponent(name, value string) error {
+	clean := filepath.Clean(value)
+	if value == "" || clean == "." || clean == ".." || filepath.IsAbs(value) {
+		return fmt.Errorf("invalid %s", name)
+	}
+	parts := strings.Split(clean, string(os.PathSeparator))
+	for _, p := range parts {
+		if p == "" || p == "." || p == ".." {
+			return fmt.Errorf("invalid %s", name)
+		}
+	}
+	return nil
+}
+
 // resolve converts a bucket/key pair into a safe absolute path.
 func (d *FilesystemDriver) resolve(bucket, key string) (string, error) {
+	if err := validateRelativePathComponent("bucket", bucket); err != nil {
+		return "", err
+	}
+	if err := validateRelativePathComponent("key", key); err != nil {
+		return "", err
+	}
 	joined := filepath.Join(d.base, bucket, key)
 	return ensureInside(d.base, joined)
 }
