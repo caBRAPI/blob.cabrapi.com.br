@@ -129,17 +129,17 @@ func (s *MultipartService) UploadChunk(ctx context.Context, in ChunkInput) error
 		return fmt.Errorf("failed to save chunk")
 	}
 
-	written := -1
+	written := int64(-1)
 	// io.TeeReader does not expose the written count; stat the object instead.
 	if info, err := s.storage.Stat(ctx, chunkBucket, key); err == nil {
-		written = int(info.Size)
+		written = info.Size
 	}
 
-	if s.cfg.MinChunkSize > 0 && written < int(s.cfg.MinChunkSize) {
+	if s.cfg.MinChunkSize > 0 && written < s.cfg.MinChunkSize {
 		_ = s.storage.Delete(ctx, chunkBucket, key)
 		return fmt.Errorf("chunk too small (min %d bytes)", s.cfg.MinChunkSize)
 	}
-	if s.cfg.MaxChunkSize > 0 && int64(written) > s.cfg.MaxChunkSize {
+	if s.cfg.MaxChunkSize > 0 && written > s.cfg.MaxChunkSize {
 		_ = s.storage.Delete(ctx, chunkBucket, key)
 		return fmt.Errorf("chunk too large (max %d bytes)", s.cfg.MaxChunkSize)
 	}
@@ -153,7 +153,7 @@ func (s *MultipartService) UploadChunk(ctx context.Context, in ChunkInput) error
 	// Enforce the per-upload size cap against the actual bytes stored so far,
 	// regardless of the declared size at initiate time.
 	if s.cfg.MaxUploadSize > 0 {
-		total := int64(written)
+		total := written
 		var existing []int
 		_ = json.Unmarshal(upload.ChunksDone, &existing)
 		for _, idx := range existing {
