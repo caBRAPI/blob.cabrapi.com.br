@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -91,9 +92,33 @@ type UploadInput struct {
 	File      io.Reader
 }
 
+func validateBucketName(bucket string) error {
+	b := strings.TrimSpace(bucket)
+	if b == "" {
+		return fmt.Errorf("invalid bucket: empty value")
+	}
+	if filepath.IsAbs(b) {
+		return fmt.Errorf("invalid bucket: absolute paths are not allowed")
+	}
+	if strings.Contains(b, "\\") {
+		return fmt.Errorf("invalid bucket: backslashes are not allowed")
+	}
+	if strings.Contains(b, "..") {
+		return fmt.Errorf("invalid bucket: parent directory references are not allowed")
+	}
+	if strings.Contains(b, "//") {
+		return fmt.Errorf("invalid bucket: empty path segments are not allowed")
+	}
+	return nil
+}
+
 // Upload streams the file into storage, computes its SHA256, applies
 // deduplication when enabled and persists the metadata row.
 func (s *BlobService) Upload(ctx context.Context, in UploadInput) (*models.Blob, error) {
+	if err := validateBucketName(in.Bucket); err != nil {
+		return nil, err
+	}
+
 	id := uuid.New()
 	bucket := in.Bucket
 	key := id.String()
