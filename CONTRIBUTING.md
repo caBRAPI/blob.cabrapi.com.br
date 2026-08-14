@@ -98,12 +98,21 @@ docker-compose up
 
 ### Project Structure
 
-- **Controllers**: Handle HTTP requests (`src/controllers/`).
-- **Models**: Data structures (`src/models/`).
-- **Routes**: Route definitions (`src/routes/`).
-- **Services**: Business logic (`src/services/`).
-- **Middleware**: Authentication, rate limiting (`src/middleware/`).
-- **Database**: Database connections (`src/database/`).
+The codebase is organized in layers (API → Service → Storage/Metadata):
+
+- **api/controllers**: HTTP handlers (`src/api/controllers/`).
+- **api/routes**: Route definitions (`src/api/routes/`).
+- **api/middleware**: Authentication, rate limiting (`src/api/middleware/`).
+- **api/validators**: Request validation (`src/api/validators/`).
+- **auth**: Token verification, permissions and signed URLs (`src/auth/`).
+- **config**: Centralized environment configuration (`src/config/`).
+- **storage**: Storage engine interface + filesystem driver (`src/storage/`).
+- **repository**: Metadata persistence (PostgreSQL) (`src/repository/`).
+- **services**: Business logic (blob, multipart) (`src/services/`).
+- **models**: Data structures (`src/models/`).
+- **database**: Database connections (`src/database/`).
+- **events**: Internal event bus (`src/events/`).
+- **metrics**: Runtime telemetry (`src/metrics/`).
 
 ### Commit Messages
 

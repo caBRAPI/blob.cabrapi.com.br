@@ -1,12 +1,14 @@
 package main
 
 import (
+	"blob/src/api/middleware"
+	"blob/src/api/routes"
+	"blob/src/config"
 	"blob/src/database"
 	"blob/src/functions"
-	"blob/src/middleware"
-	"blob/src/routes"
 	"blob/src/services"
 	queue "blob/src/services/queue"
+	"blob/src/version"
 	"net/http"
 	"os"
 	"strings"
@@ -16,7 +18,7 @@ import (
 	"github.com/rs/cors"
 )
 
-var Version = "N/A"
+var Version = "SNAPSHOT"
 
 func main() {
 
@@ -29,7 +31,25 @@ func main() {
 	database.Redis()
 	database.Postgres()
 
+	cfg := config.Load()
+	version.V = Version
+
+	if cfg.SignedURLSecret == "" || len(cfg.SignedURLSecret) < 16 {
+		functions.Error("BLOB_SIGNED_URL_SECRET is required (at least 16 characters). Signed URLs are disabled until it is set.")
+		os.Exit(1)
+	}
+
+	if cfg.TokenSecret == "change-me-with-32-characters-or-more" || (cfg.TokenSecret != "" && len(cfg.TokenSecret) < 32) {
+		functions.Error("BLOB_TOKEN_SECRET is insecure: use a unique secret of at least 32 characters, or leave it empty to disable the master token and rely on BLOB_API_KEYS only.")
+		os.Exit(1)
+	}
+	if cfg.TokenSecret == "" {
+		functions.Warn("BLOB_TOKEN_SECRET is empty: master token authentication is disabled, only BLOB_API_KEYS can authenticate.")
+	}
+
 	services.InitAsynq()
+	services.InitBlobService()
+	services.InitMultipartService()
 	queue.StartQueueWorker()
 	queue.StartCleanupScheduler()
 	queue.StartTmpCleanupScheduler()
@@ -38,34 +58,26 @@ func main() {
 	limiter := middleware.Variables()
 	routes.RegisterRoutes(mux, limiter)
 
-	corsOrigins := os.Getenv("BLOB_CORS_ORIGINS")
 	corsOpts := cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowCredentials: true,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type", "Accept", "Origin"},
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
+		AllowedHeaders: []string{"Authorization", "Content-Type", "Accept", "Origin", "X-Chunk-Index", "X-Chunk-Hash", "X-Final-Hash", "Range"},
 	}
-	if corsOrigins != "*" && corsOrigins != "" {
-		origins := strings.Split(corsOrigins, ",")
+	if cfg.CORSOrigins != "*" && cfg.CORSOrigins != "" {
+		origins := strings.Split(cfg.CORSOrigins, ",")
 		for i := range origins {
 			origins[i] = strings.TrimSpace(origins[i])
 		}
 		corsOpts.AllowedOrigins = origins
 	}
+	// AllowCredentials cannot be combined with the "*" wildcard; auth is done
+	// via the Authorization header, so cookies are not needed.
+	corsOpts.AllowCredentials = len(corsOpts.AllowedOrigins) == 1 && corsOpts.AllowedOrigins[0] != "*"
 	handler := cors.New(corsOpts).Handler(mux)
 
-	port := os.Getenv("BLOB_PORT")
-	if port == "" {
-		port = "3000"
-	}
-	host := os.Getenv("BLOB_HOST")
-	if host == "" {
-		host = "localhost"
-	}
-
-	functions.Info("[SERVER] Server running at: http://%s:%s", host, port)
+	functions.Info("[SERVER] Server running at: http://%s:%s", cfg.Host, cfg.Port)
 	srv := &http.Server{
-		Addr:         host + ":" + port,
+		Addr:         cfg.Host + ":" + cfg.Port,
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
